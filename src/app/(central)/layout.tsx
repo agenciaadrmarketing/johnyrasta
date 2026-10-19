@@ -1,6 +1,7 @@
 import { exigirSessao } from '@/modules/accounts/contexto';
 import { sair } from '@/modules/accounts/acoes';
 import { contagensDoMenu, listarSites } from '@/modules/portfolio/consultas';
+import { contarAlertasAbertos } from '@/modules/monitoring/consultas';
 import { MenuLateral } from '@/shared/ui/MenuLateral';
 import { FaixaDemo } from '@/shared/ui/FaixaDemo';
 
@@ -12,10 +13,11 @@ export default async function LayoutCentral({ children }: { children: React.Reac
   const usuario = await exigirSessao();
   const contagens = await contagensDoMenu(usuario.accountId);
   const sites = await listarSites(usuario.accountId, usuario.userId, { filtro: 'atencao' });
+  const alertas = await contarAlertasAbertos(usuario.accountId);
   return (
     <div className="casca-painel">
       <MenuLateral
-        contagens={{ ...contagens, atencao: sites.length }}
+        contagens={{ ...contagens, atencao: alertas + sites.filter((s) => !['indisponivel', 'suspeita', 'verificacao_atrasada'].includes(s.situacao.estado)).length }}
         contaNome={usuario.accountName}
         usuarioNome={usuario.name}
         sair={sair}

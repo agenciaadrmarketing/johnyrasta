@@ -4,6 +4,7 @@ import { exigirSessao } from '@/modules/accounts/contexto';
 import { encerrarOutrasSessoes } from '@/modules/accounts/acoes';
 import { tokenAtualHash } from '@/modules/accounts/session';
 import { estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
+import { estadoDaFila } from '@/modules/monitoring/consultas';
 import { semConta, verificarBanco } from '@/shared/db';
 import { Cabecalho } from '@/shared/ui/Cabecalho';
 import { Painel, Aviso } from '@/shared/ui/Painel';
@@ -21,9 +22,10 @@ type Sessao = { id: string; created_at: Date; last_seen_at: Date; expires_at: Da
  */
 export default async function PaginaConfiguracoes() {
   const u = await exigirSessao();
-  const [banco, worker, sessoes, atual] = [
+  const [banco, worker, fila, sessoes, atual] = [
     await verificarBanco(),
     await estadoDoWorker(u.accountId),
+    await estadoDaFila(u.accountId),
     await semConta((db) => db.query<Sessao>('select * from app.list_sessions($1)', [u.userId])),
     await tokenAtualHash(),
   ];
@@ -55,6 +57,21 @@ export default async function PaginaConfiguracoes() {
                   {worker.workerId}
                   {worker.version ? ` · ${worker.version}` : ''}
                 </span>
+              )}
+            </dd>
+            <dt>Fila de verificações</dt>
+            <dd style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--esp-2)', alignItems: 'center' }}>
+              {fila.monitoresAtivos === 0 ? (
+                <SeloEstado texto="Nenhum monitor ativo" tom="soft" />
+              ) : fila.atrasados > 0 ? (
+                <SeloEstado texto={`${fila.atrasados} de ${fila.monitoresAtivos} atrasados`} tom="neg" />
+              ) : fila.devidos > 0 ? (
+                <SeloEstado texto={`${fila.devidos} de ${fila.monitoresAtivos} aguardando o worker`} tom="warn" />
+              ) : (
+                <SeloEstado texto={`${fila.monitoresAtivos} monitores em dia`} tom="ok" />
+              )}
+              {fila.maisAntigoSegundos != null && fila.maisAntigoSegundos > 60 && (
+                <span style={{ fontSize: 'var(--tipo-legenda)', color: 'var(--tx3)' }}>mais antigo devido há {Math.round(fila.maisAntigoSegundos / 60)} min</span>
               )}
             </dd>
             <dt>PageSpeed (Google)</dt>

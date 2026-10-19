@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { exigirSessao } from '@/modules/accounts/contexto';
-import { buscarSite, estadoDoWorker } from '@/modules/portfolio/consultas';
+import { buscarSite, estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
+import { historicoDeAlertas, incidentesDoSite, ROTULO_ALERTA } from '@/modules/monitoring/consultas';
 import { arquivarSite } from '@/modules/portfolio/acoes';
 import { Painel, Aviso } from '@/shared/ui/Painel';
 import { SeloEstado } from '@/shared/ui/SeloEstado';
@@ -22,7 +23,10 @@ export default async function PaginaResumo({ params }: { params: Promise<{ siteI
   const site = await buscarSite(u.accountId, u.userId, siteId);
   if (!site) notFound();
   const worker = await estadoDoWorker(u.accountId);
+  const alertas = await historicoDeAlertas(u.accountId, site.id, 8);
+  const incidentes = await incidentesDoSite(u.accountId, site.id, 5);
   const s = site.situacao;
+  const semWorker = !worker || workerSemSinal(worker.seenAt);
   const plataforma = PLATAFORMAS.find((p) => p.valor === site.platform)?.texto ?? site.platform;
 
   const recursos: { nome: string; estado: string; tom: 'ok' | 'warn' | 'neg' | 'soft'; detalhe: string; href: string }[] = [
@@ -34,9 +38,11 @@ export default async function PaginaResumo({ params }: { params: Promise<{ siteI
           ? { estado: 'Não ativado', tom: 'soft' as const, detalhe: 'Ative na edição do site para o worker verificar a cada 5 minutos.' }
           : !site.monitor.enabled
             ? { estado: 'Pausado', tom: 'soft' as const, detalhe: 'Pausado por você. Disponibilidade não é calculada.' }
-            : worker
-              ? { estado: 'Aguardando primeira checagem', tom: 'warn' as const, detalhe: `Worker visto ${dataHora(worker.seenAt, site.timezone)}. A primeira checagem ainda não foi registrada (Fase 2).` }
-              : { estado: 'Aguardando worker', tom: 'warn' as const, detalhe: 'Monitor ativo, mas nenhum worker se apresentou ainda. Sem worker, nada é verificado.' }),
+            : !site.monitor.lastCheckAt
+              ? semWorker
+                ? { estado: 'Aguardando worker', tom: 'warn' as const, detalhe: 'Monitor ativo, mas nenhum worker em execução. Sem worker, nada é verificado.' }
+                : { estado: 'Aguardando primeira checagem', tom: 'warn' as const, detalhe: `Worker visto ${dataHora(worker!.seenAt, site.timezone)}. A primeira checagem sai em instantes.` }
+              : { estado: s.rotulo, tom: s.tom, detalhe: `${s.frase} Última checagem ${dataHora(site.monitor.lastCheckAt, site.timezone)}.` }),
       href: `/sites/${site.id}/disponibilidade`,
     },
     { nome: 'Velocidade (PageSpeed)', estado: 'Não configurado', tom: 'soft', detalhe: 'Selecione até 3 URLs e configure a chave do Google (Fase 3).', href: `/sites/${site.id}/velocidade` },
@@ -74,8 +80,23 @@ export default async function PaginaResumo({ params }: { params: Promise<{ siteI
         </ul>
       </Painel>
 
-      <Painel kicker="atividade recente" titulo="Nada registrado ainda">
-        <Aviso>Incidentes, medições e contatos aparecerão aqui quando existirem. Não há atividade fictícia.</Aviso>
+      <Painel kicker="atividade recente" titulo={alertas.length || incidentes.length ? 'Últimos acontecimentos' : 'Nada registrado ainda'}>
+        {alertas.length === 0 && incidentes.length === 0 ? (
+          <Aviso>Incidentes, alertas, medições e contatos aparecerão aqui quando existirem. Não há atividade fictícia.</Aviso>
+        ) : (
+          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--esp-2)' }}>
+            {alertas.map((a) => (
+              <li key={a.id} className="item-trabalho" data-tom={a.state !== 'aberto' ? 'soft' : a.severity === 'alta' ? 'neg' : 'warn'}>
+                <SeloEstado texto={a.state === 'aberto' ? 'Alerta aberto' : 'Alerta encerrado'} tom={a.state === 'aberto' ? (a.severity === 'alta' ? 'neg' : 'warn') : 'soft'} />
+                <div className="item-trabalho-texto">
+                  <span className="item-trabalho-titulo">{ROTULO_ALERTA[a.kind] ?? a.kind}</span>
+                  <span className="item-trabalho-detalhe">{dataHora(a.createdAt, site.timezone)}</span>
+                </div>
+                <Link href={`/sites/${site.id}/disponibilidade`} className="botao botao-pequeno">Ver</Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </Painel>
 
       <Painel kicker="cadastro" titulo="Dados do projeto" acoes={<Link href={`/sites/${site.id}/editar`} className="botao botao-pequeno">Editar</Link>}>

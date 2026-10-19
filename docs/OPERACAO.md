@@ -35,6 +35,21 @@ Sem `BOOTSTRAP_*` no ambiente, o bootstrap pergunta no terminal. Ele se recusa a
 ## Variáveis
 Documentadas em `.env.example`. Segredos só no gestor da hospedagem.
 
+## O worker (Fase 2)
+- `npm run worker` inicia o processo. Ele reivindica monitores devidos a cada 5 s, verifica com concorrência `MONITOR_CONCORRENCIA` (padrão 5), grava checagens, incidentes e alertas, apaga checagens com mais de 30 dias e se apresenta por heartbeat a cada 30 s.
+- Pode haver mais de uma instância: a fila usa lease; dois workers nunca pegam o mesmo monitor.
+- Se o worker morrer no meio de uma checagem, o lease vence em 90 s e outro worker (ou ele mesmo, reiniciado) retoma.
+- `MONITOR_EXCECOES_DE_REDE` libera IPs privados por lista explícita. Em instalação aberta, deixe vazio. Configure também bloqueio de egress na hospedagem para redes privadas e metadata de nuvem: é a segunda camada.
+- Capacidade: 100 sites a cada 5 min são 20 checagens/min; com 10 s de timeout e concorrência 5, o pior caso cabe. Acompanhe "Fila de verificações" em Configurações: "atrasados" acima de zero por mais de um ciclo pede mais concorrência ou mais uma instância.
+
+### Teste de aceite ao vivo (opcional)
+```bash
+echo "127.0.0.1 piloto.exemplo.test" >> /etc/hosts     # ou um nome que resolva para um servidor seu
+# suba um servidor HTTP na porta 80 que devolva 200/500 conforme um arquivo de controle
+MONITOR_EXCECOES_DE_REDE=127.0.0.1 npm run worker
+```
+Cadastre `http://piloto.exemplo.test/` como site com monitor, alterne o servidor para 500 e observe em Disponibilidade: suspeita → confirmado em duas checagens → recuperado ao voltar para 200. Em Atenção aparece um alerta de abertura e, depois, um de recuperação.
+
 ## Implantação (proposta; não executada)
 1. Banco gerenciado: rode `npm run db:setup` a partir de uma máquina com acesso administrativo (ou aplique `migrations/` com o papel administrador e crie os papéis à mão com as senhas das URLs).
 2. Web: `npm run build` + `npm start` (ou plataforma Next). Variáveis: `DATABASE_URL`, `SESSION_SECRET`, `APP_URL`.

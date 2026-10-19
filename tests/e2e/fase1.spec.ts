@@ -100,7 +100,8 @@ test.describe('Fase 1 — fundação e central de sites', () => {
     await page.goto('/configuracoes');
     const worker = page.locator('#sistema .selo-estado').nth(1);
     await expect(worker).toHaveText(/Nunca visto|Sem sinal|Ativo/);
-    await expect(page.locator('#sistema')).toContainText('npm run worker');
+    // Sem heartbeat recente, a tela explica como iniciar o worker.
+    if (!/Ativo/.test(await worker.innerText())) await expect(page.locator('#sistema')).toContainText('npm run worker');
   });
 
   test('V03: com prefers-reduced-motion os efeitos nascem desligados e a interface funciona', async ({ browser }) => {

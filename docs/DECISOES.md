@@ -51,3 +51,29 @@ Nenhuma disponibilidade, nota, visita ou contato é exibido. As abas Disponibili
 - Redis/BullMQ (fila em PostgreSQL com lease atende o volume previsto; reavaliar na Fase 3 com a quota real do PageSpeed).
 - Push do navegador (depende de permissão; não bloqueia monitor).
 - Recuperação de senha por e-mail (exige provedor; Fase 5). O link não aparece na tela de login para não prometer o que não existe.
+
+## 2026-10-19 — Fase 2
+
+### D15. A fila é a tabela de monitores, com lease
+`next_check_at` diz quando é devido; `lease_token`/`lease_until` dizem quem processa. Reivindicação com `FOR UPDATE SKIP LOCKED`; toda gravação confere o token. Um worker que morreu no meio perde o lease em 90 s e outro retoma; a gravação tardia do primeiro é descartada (testado, U07). Sem Redis: o volume previsto (centenas de monitores a cada 5 min) cabe folgado no Postgres.
+
+### D16. Verificador próprio sobre `http`/`https` do Node, não `fetch`
+Precisávamos de três coisas que o `fetch` esconde: fixar a conexão no IP validado (`lookup` injetado), ler o certificado do socket e cortar a leitura por bytes lidos. Política de rede em módulo puro (`src/modules/monitoring/rede.ts`), consultada antes de resolver, depois de resolver (todos os endereços) e a cada redirecionamento. Um endereço privado no conjunto bloqueia o host inteiro.
+
+### D17. Exceções de rede são explícitas e ruidosas
+`MONITOR_EXCECOES_DE_REDE` libera IPs privados por lista. O worker avisa no log ao iniciar com a lista preenchida. Sem ela, o verificador nunca conecta em loopback, redes privadas, link-local, metadata de nuvem, CGNAT, faixas especiais, IPv4 mapeado em IPv6, NAT64, 6to4 ou multicast. Portas fora de 80/443 só para hosts da lista. O bloqueio de egress na hospedagem continua recomendado como segunda camada.
+
+### D18. Máquina de estados pura, uma por checagem
+`transicao()` recebe o monitor, o resultado e o relógio; devolve a ação (abrir, confirmar, incrementar, fechar isolada, recuperar), os alertas a inserir e os a resolver. Regras: 1ª falha abre incidente não confirmado; 2ª consecutiva sem lacuna maior que 3 intervalos confirma e gera UM alerta; sucesso recupera e gera alerta de recuperação. Manutenção registra tudo e suprime alertas. A lacuna reinicia a contagem.
+
+### D19. Deduplicação por chave, no banco
+`alerts.dedupe_key` é única por conta: `incidente:<id>:confirmado`, `incidente:<id>:recuperado`, `tls:<monitor>:<notAfter>:<faixa>`, `atraso:<monitor>:<última checagem>`. Dez checagens falhas do mesmo incidente produzem uma linha (N01, testado contra o Postgres). Entrega por canal (e-mail) é outbox separado, Fase 5.
+
+### D20. Checagem atrasada é alerta de episódio, resolvido ao retomar
+O worker, ao pegar um monitor cuja última checagem tem mais de 3 intervalos, grava o alerta já resolvido: fica o registro de que houve um buraco, sem ruído aberto. A central calcula o estado "verificação atrasada" ao vivo pela mesma regra (`verificacaoAtrasada`) — por isso um worker parado nunca deixa um verde antigo na tela.
+
+### D21. "Checagens bem-sucedidas no período", nunca "uptime"
+A aba mostra a fração de amostras que respondeu, o número de amostras e as lacunas de cobertura. Não é disponibilidade contínua e a tela diz isso. Verificação manual só enfileira (cooldown de 2 min), nunca aceita destino arbitrário.
+
+### D22. Retenção
+Checagens detalhadas: 30 dias (o worker apaga a cada hora). Incidentes e alertas ficam.

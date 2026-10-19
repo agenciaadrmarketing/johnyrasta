@@ -26,7 +26,23 @@ export type Site = {
   updatedAt: Date;
   archivedAt: Date | null;
   favorito: boolean;
-  monitor: null | { enabled: boolean; intervalSeconds: number; maintenanceUntil: Date | null };
+  monitor: null | MonitorDoSite;
+};
+
+export type MonitorDoSite = {
+  id: string;
+  enabled: boolean;
+  intervalSeconds: number;
+  maintenanceUntil: Date | null;
+  lastCheckAt: Date | null;
+  lastOk: boolean | null;
+  consecutiveFailures: number;
+  tlsState: 'desconhecido' | 'valido' | 'sem_tls' | 'falha';
+  tlsExpiresAt: Date | null;
+  manualRequestedAt: Date | null;
+  nextCheckAt: Date | null;
+  incidenteAberto: null | { id: string; firstFailureAt: Date; confirmedAt: Date | null; failedChecks: number };
+  ultimaRecuperacao: Date | null;
 };
 
 export type SiteComSituacao = Site & { situacao: Situacao };
@@ -41,9 +57,11 @@ function comSituacao(s: Site): SiteComSituacao {
             habilitado: s.monitor.enabled,
             intervaloSegundos: s.monitor.intervalSeconds,
             manutencaoAte: s.monitor.maintenanceUntil,
-            ultimaChecagem: null,
-            incidenteAberto: null,
-            recuperadoEm: null,
+            ultimaChecagem: s.monitor.lastCheckAt ? { em: s.monitor.lastCheckAt, ok: s.monitor.lastOk ?? false } : null,
+            incidenteAberto: s.monitor.incidenteAberto
+              ? { desde: s.monitor.incidenteAberto.firstFailureAt, confirmado: s.monitor.incidenteAberto.confirmedAt !== null }
+              : null,
+            recuperadoEm: s.monitor.ultimaRecuperacao,
           }
         : null,
     }),
@@ -56,7 +74,13 @@ const SELECT_SITE = `
          s.created_at as "createdAt", s.updated_at as "updatedAt", s.archived_at as "archivedAt",
          (f.site_id is not null) as favorito,
          case when m.id is null then null else json_build_object(
-           'enabled', m.enabled, 'intervalSeconds', m.interval_seconds, 'maintenanceUntil', m.maintenance_until
+           'id', m.id, 'enabled', m.enabled, 'intervalSeconds', m.interval_seconds, 'maintenanceUntil', m.maintenance_until,
+           'lastCheckAt', m.last_check_at, 'lastOk', m.last_ok, 'consecutiveFailures', m.consecutive_failures,
+           'tlsState', m.tls_state, 'tlsExpiresAt', m.tls_expires_at, 'manualRequestedAt', m.manual_requested_at,
+           'nextCheckAt', m.next_check_at,
+           'incidenteAberto', (select json_build_object('id', i.id, 'firstFailureAt', i.first_failure_at, 'confirmedAt', i.confirmed_at, 'failedChecks', i.failed_checks)
+                                 from incidents i where i.monitor_id = m.id and i.recovered_at is null limit 1),
+           'ultimaRecuperacao', (select max(i.recovered_at) from incidents i where i.monitor_id = m.id and i.outcome = 'confirmado')
          ) end as monitor
     from sites s
     join clients c on c.id = s.client_id
@@ -64,11 +88,32 @@ const SELECT_SITE = `
     left join site_favorites f on f.site_id = s.id and f.user_id = $1
 `;
 
+type MonitorBruto = {
+  id: string; enabled: boolean; intervalSeconds: number; maintenanceUntil: string | null; lastCheckAt: string | null; lastOk: boolean | null;
+  consecutiveFailures: number; tlsState: MonitorDoSite['tlsState']; tlsExpiresAt: string | null; manualRequestedAt: string | null; nextCheckAt: string | null;
+  incidenteAberto: null | { id: string; firstFailureAt: string; confirmedAt: string | null; failedChecks: number };
+  ultimaRecuperacao: string | null;
+};
+const dataOuNull = (v: string | null) => (v ? new Date(v) : null);
+
 function hidratar(linha: Site): Site {
-  const m = linha.monitor as unknown as null | { enabled: boolean; intervalSeconds: number; maintenanceUntil: string | null };
+  const m = linha.monitor as unknown as MonitorBruto | null;
   return {
     ...linha,
-    monitor: m ? { ...m, maintenanceUntil: m.maintenanceUntil ? new Date(m.maintenanceUntil) : null } : null,
+    monitor: m
+      ? {
+          ...m,
+          maintenanceUntil: dataOuNull(m.maintenanceUntil),
+          lastCheckAt: dataOuNull(m.lastCheckAt),
+          tlsExpiresAt: dataOuNull(m.tlsExpiresAt),
+          manualRequestedAt: dataOuNull(m.manualRequestedAt),
+          nextCheckAt: dataOuNull(m.nextCheckAt),
+          incidenteAberto: m.incidenteAberto
+            ? { ...m.incidenteAberto, firstFailureAt: new Date(m.incidenteAberto.firstFailureAt), confirmedAt: dataOuNull(m.incidenteAberto.confirmedAt) }
+            : null,
+          ultimaRecuperacao: dataOuNull(m.ultimaRecuperacao),
+        }
+      : null,
   };
 }
 

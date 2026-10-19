@@ -1,18 +1,25 @@
 /**
  * Worker do JohnyWeb — processo separado da aplicação web.
  *
- * Fase 1: só o HEARTBEAT, para a central mostrar com honestidade se existe um
- * worker em execução. A agenda, a fila com leases, o verificador HTTP seguro
- * (anti-SSRF), incidentes e TLS entram na Fase 2 neste mesmo processo.
+ *   npm run worker
+ *
+ * Laço: reivindica monitores devidos (fila com lease no Postgres), verifica
+ * com o verificador seguro, aplica a máquina de estados, grava, agenda a
+ * próxima checagem. Heartbeat a cada 30 s; retenção a cada hora. Nada aqui
+ * depende de uma aba aberta nem de visitas à central.
  *
  * Papel do banco: app_worker (DATABASE_URL_WORKER). Sem acesso a usuários,
  * sessões ou contatos.
  *
- *   npm run worker
+ * Variáveis:
+ *   WORKER_ID                     identificador desta instância
+ *   MONITOR_CONCORRENCIA          checagens simultâneas (padrão 5)
+ *   MONITOR_EXCECOES_DE_REDE      IPs privados permitidos, separados por vírgula (NUNCA em produção aberta)
  */
 import { Pool } from 'pg';
 import { hostname } from 'node:os';
 import { loadEnv } from '../scripts/env';
+import { rodada, retencao } from './rodada';
 
 loadEnv();
 
@@ -23,12 +30,16 @@ if (!url) {
 }
 
 const WORKER_ID = process.env.WORKER_ID ?? `${hostname()}-${process.pid}`;
-const VERSAO = process.env.npm_package_version ?? 'dev';
-const INTERVALO_HEARTBEAT_MS = 30_000;
+const VERSAO = `v2-fase2`;
+const TICK_MS = 5_000;
+const HEARTBEAT_MS = 30_000;
+const RETENCAO_MS = 60 * 60 * 1000;
+const CONCORRENCIA = Number(process.env.MONITOR_CONCORRENCIA ?? 5);
+const EXCECOES = (process.env.MONITOR_EXCECOES_DE_REDE ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
-const pool = new Pool({ connectionString: url, max: 2 });
+const pool = new Pool({ connectionString: url, max: CONCORRENCIA + 2 });
 
-async function heartbeat(detalhes: Record<string, unknown> = {}): Promise<void> {
+async function heartbeat(detalhes: Record<string, unknown>): Promise<void> {
   await pool.query(
     `insert into worker_heartbeats (worker_id, seen_at, version, details)
      values ($1, now(), $2, $3)
@@ -37,17 +48,53 @@ async function heartbeat(detalhes: Record<string, unknown> = {}): Promise<void> 
   );
 }
 
+async function estadoDaFila() {
+  const r = await pool.query<{ devidos: number; atrasados: number; mais_antigo_s: number | null }>(
+    `select count(*) filter (where next_check_at <= now())::int as devidos,
+            count(*) filter (where next_check_at < now() - make_interval(secs => interval_seconds * 3))::int as atrasados,
+            extract(epoch from now() - min(next_check_at))::int as mais_antigo_s
+       from monitors where enabled`,
+  );
+  return r.rows[0]!;
+}
+
 let encerrando = false;
+let ultimoHeartbeat = 0;
+let ultimaRetencao = 0;
+let acumulado = { reivindicados: 0, gravados: 0, descartados: 0, erros: 0 };
+
 async function loop() {
-  console.log(`[worker] ${WORKER_ID} iniciado. Fase 1: heartbeat a cada ${INTERVALO_HEARTBEAT_MS / 1000}s. Verificações HTTP chegam na Fase 2.`);
+  console.log(`[worker] ${WORKER_ID} iniciado. Concorrência ${CONCORRENCIA}. Exceções de rede: ${EXCECOES.length ? EXCECOES.join(', ') : 'nenhuma'}.`);
+  if (EXCECOES.length) console.warn('[worker] ATENÇÃO: há IPs privados liberados. Não use isto numa instalação aberta.');
   while (!encerrando) {
+    const inicio = Date.now();
     try {
-      const devidos = await pool.query<{ n: number }>('select count(*)::int as n from monitors where enabled and next_check_at <= now()');
-      await heartbeat({ fase: 1, monitoresDevidos: devidos.rows[0]?.n ?? 0, capacidade: 'heartbeat apenas' });
+      const r = await rodada(pool, { workerId: WORKER_ID, concorrencia: CONCORRENCIA, verificador: { excecoesDeRede: EXCECOES } });
+      acumulado = { reivindicados: acumulado.reivindicados + r.reivindicados, gravados: acumulado.gravados + r.gravados, descartados: acumulado.descartados + r.descartados, erros: acumulado.erros + r.erros };
+      if (r.reivindicados) console.log(`[worker] rodada: ${r.gravados} gravadas, ${r.descartados} descartadas (lease perdido), ${r.erros} erros`);
     } catch (e) {
-      console.error('[worker] heartbeat falhou:', e instanceof Error ? e.message : e);
+      console.error('[worker] rodada falhou:', e instanceof Error ? e.message : e);
     }
-    await new Promise((r) => setTimeout(r, INTERVALO_HEARTBEAT_MS));
+    if (Date.now() - ultimoHeartbeat > HEARTBEAT_MS) {
+      try {
+        const fila = await estadoDaFila();
+        await heartbeat({ fase: 2, fila, acumulado, concorrencia: CONCORRENCIA });
+        ultimoHeartbeat = Date.now();
+      } catch (e) {
+        console.error('[worker] heartbeat falhou:', e instanceof Error ? e.message : e);
+      }
+    }
+    if (Date.now() - ultimaRetencao > RETENCAO_MS) {
+      try {
+        const n = await retencao(pool);
+        if (n) console.log(`[worker] retenção: ${n} checagens antigas apagadas`);
+        ultimaRetencao = Date.now();
+      } catch (e) {
+        console.error('[worker] retenção falhou:', e instanceof Error ? e.message : e);
+      }
+    }
+    const espera = Math.max(250, TICK_MS - (Date.now() - inicio));
+    await new Promise((r) => setTimeout(r, espera));
   }
   await pool.end();
   console.log('[worker] encerrado.');
