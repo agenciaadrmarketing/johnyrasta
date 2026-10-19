@@ -1,0 +1,2521 @@
+/*
+ * Identidade Matrix.
+ *
+ * Os tokens são os valores exatos do protótipo exportado do Claude Design
+ * (objeto THEMES), preservados para que a aparência não mude ao trocar de
+ * tecnologia. Escuro é o padrão; claro permanece disponível.
+ */
+
+:root,
+[data-tema='escuro'] {
+  /*
+   * ── ESCALA DE SUPERFÍCIE ──
+   *
+   * Cinco níveis, e os degraus foram MEDIDOS. Antes eram 1,03 → 1,01 → 1,09 →
+   * 1,07 de razão de luminância: `--side` sobre `--bg` em 1,01 é invisível, e
+   * profundidade que ninguém enxerga não é profundidade — é só preto.
+   *
+   * Agora: 1,06 → 1,04 → 1,10 → 1,11. Para calibrar, a rampa de exemplo de um
+   * sistema SaaS dark de referência (#08090A · #0D0F10 · #121416 · #171A1D) tem
+   * degraus de 1,04 → 1,04 → 1,06. Esta é mais separada que aquela.
+   *
+   * O TETO não é gosto: levantar superfície no escuro BAIXA o contraste do
+   * texto claro. Uma rampa mais ousada (degraus até 1,28) derrubava `--tx3`
+   * para 3,67:1 — reprovado para texto de corpo, e `--tx3` é o token de toda
+   * legenda. Com esta, o pior par fica em 5,03:1.
+   *
+   * `--bg` continua preto absoluto: é a identidade, e é o piso da escala.
+   */
+  --bg: #000000;
+  --side: #060b07;
+  --card: #0a120b;
+  --elev: #121d14;
+  --bd: #1a6b2e;
+  --bdc: #2fc957;
+  --glow: 0 0 18px rgba(112, 255, 139, 0.28);
+  /*
+   * Elevação. No ESCURO, sombra projetada é invisível: preto sobre preto não
+   * separa nada. Quem separa é a luz de cima — um filete claro na borda
+   * superior, como a quina de um objeto real iluminado de frente. A sombra
+   * entra só no nível 2, e funda, para o cartão descolar do fundo.
+   */
+  --sombra-1: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --sombra-2:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 28px rgba(0, 0, 0, 0.65);
+  --tx: #eef8f0;
+  --tx2: #a1b5a6;
+  --tx3: #809887;
+  --hover: #18271b;
+  --rowbd: rgba(34, 59, 41, 0.7);
+  --gold: #70ff8b;
+  --gold-fill: rgba(112, 255, 139, 0.12);
+  --gold-tx: #70ff8b;
+  --on-gold: #04120a;
+  --pos: #39c965;
+  --neg: #ff8585;
+  /* Versões de TEXTO de --pos e --neg. No escuro coincidem com o
+     preenchimento, porque ali já passam de 4,5:1; existem para que o
+     componente diga o que quer (texto) em vez de acertar por acaso. */
+  --pos-tx: #39c965;
+  --neg-tx: #ff8585;
+  --ok-bg: rgba(112, 255, 139, 0.12);
+  --ok-tx: #70ff8b;
+  --soft-bg: rgba(161, 181, 166, 0.1);
+  --soft-tx: #a1b5a6;
+  --warn-bg: rgba(235, 203, 116, 0.14);
+  --warn-tx: #ebcb74;
+  /* O quarto membro da família de estado. Faltava — e por isso dois
+     componentes escreviam este rgba à mão, com o valor do tema ESCURO, que
+     não trocava no claro. */
+  --neg-bg: rgba(255, 133, 133, 0.14);
+  /*
+   * ─── Paleta de DADOS (v2) ───
+   *
+   * O verde deixa de ser a única cor. Cinco cores com SIGNIFICADO fixo —
+   * nunca "variedade":
+   *   c1 verde    métrica principal, WhatsApp, positivo
+   *   c2 azul     métricas secundárias, abertura de formulário
+   *   c3 amarelo  alerta, telefone, aguardando
+   *   c4 vermelho erro, e-mail, não conectado
+   *   c5 cinza    período anterior, não identificado
+   * `--f*` são as mesmas cores a ~14% para fundo de etiqueta. Todas as `--c*`
+   * são usadas como TEXTO e número, então entram nos pares de contraste do
+   * verificador (sobre --card e --elev, nos dois temas).
+   */
+  --c1: #70ff8b;
+  --c2: #5bd1ff;
+  --c3: #ffd86b;
+  --c4: #ff7a7a;
+  --c5: #8fa394;
+  --f1: rgba(112, 255, 139, 0.14);
+  --f2: rgba(91, 209, 255, 0.14);
+  --f3: rgba(255, 216, 107, 0.14);
+  --f4: rgba(255, 122, 122, 0.14);
+  --f5: rgba(143, 163, 148, 0.14);
+  --tip: #08130b;
+  --titulo-grad: linear-gradient(180deg, #ffffff 0%, #eef8f0 42%, rgba(238, 248, 240, 0.5) 100%);
+  --botao-grad: linear-gradient(180deg, #a8ffbc 0%, #70ff8b 55%, #4fe477 100%);
+  /* Cabeçalho fixo translúcido: o conteúdo passa por trás, desfocado. */
+  --cabecalho-vidro: rgba(3, 7, 3, 0.72);
+  /*
+   * ─── Vocabulário extraído da referência ───
+   *
+   * `--lustro` é o brilho que LEVANTA o cartão. A referência usa painel
+   * translúcido mais claro que o fundo (`bg-zinc-900/50`); aqui ele entra por
+   * cima de `--card`, num gradiente que morre em 45%, em vez de alterar o
+   * token — os valores de `--card` vêm do protótipo, e mexer neles trocaria
+   * toda superfície do produto de uma vez.
+   */
+  --lustro: rgba(255, 255, 255, 0.035);
+  /* Borda de acento em alfa baixo (`border-emerald-500/20` na referência).
+     Borda colorida discreta, nunca preenchimento. */
+  --gold-bd: rgba(112, 255, 139, 0.22);
+  /* A receita do cartão: sombra interna funda + filete de luz na borda de
+     cima. No escuro a profundidade vem de dentro, porque projetar sombra sobre
+     preto não desenha nada. */
+  --sombra-cartao:
+    inset 0 1px 10px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  /* A COSTURA: filete em gradiente no topo do cartão, sumindo nas duas pontas.
+     É o detalhe mais reconhecível da referência — uma linha de luz atravessando
+     a borda superior, como uma fresta. */
+  --costura: linear-gradient(90deg, transparent, var(--gold), transparent);
+  --header-bg:
+    linear-gradient(rgba(34, 59, 41, 0.45) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgba(34, 59, 41, 0.45) 1px, transparent 1px) 0 0 / 44px 44px,
+    radial-gradient(65% 130% at 10% -20%, rgba(57, 201, 101, 0.16), transparent 60%), #050805;
+  --brand-bg: linear-gradient(90deg, rgba(112, 255, 139, 0.1), transparent 72%), #080d09;
+}
+
+[data-tema='claro'] {
+  /* No claro a escala inverte: o FUNDO recua e a superfície é o papel branco.
+     `--bg` desce um passo para o cartão branco ter de onde subir — antes a
+     diferença entre os dois era pequena demais para o cartão parecer solto. */
+  --bg: #eaf2ec;
+  --side: #ffffff;
+  --card: #ffffff;
+  --elev: #e4ece6;
+  --bd: #cbd9cd;
+  --bdc: #1f8f43;
+  --glow: none;
+  /*
+   * No CLARO a lógica inverte: a sombra projetada é que separa, e ela é
+   * EMPILHADA em vez de um borrão só — camadas curtas e longas juntas, como a
+   * luz real produz. O `inset` na base é o lábio inferior, que dá espessura à
+   * borda sem escurecer a superfície.
+   */
+  --sombra-1:
+    0 1px 2px rgba(14, 23, 16, 0.05), inset 0 -1px 0 rgba(14, 23, 16, 0.04);
+  --sombra-2:
+    0 1px 2px rgba(14, 23, 16, 0.05), 0 4px 8px rgba(14, 23, 16, 0.06),
+    0 12px 24px rgba(14, 23, 16, 0.08), inset 0 -1px 0 rgba(14, 23, 16, 0.06);
+  --tx: #0e1710;
+  --tx2: #4c5d50;
+  /*
+   * Terceira mudança de valor deste token, e cada uma teve medição própria:
+   * #6b7d6f dava 3,78:1 sobre --elev (reprova, e é o token de toda legenda);
+   * #607064 passava, com 4,53:1 — uma folga de 0,03.
+   *
+   * Essa folga era o TETO da escala de superfície: escurecer `--elev` um passo
+   * sequer derrubava a legenda. #56655a abre a margem para 5,12:1 e libera
+   * `--elev` a descer de #e9f0ea para #e4ece6 — a separação entre campo e
+   * cartão sobe de 1,159 para 1,204 de razão.
+   *
+   * O token de texto limitando a escala de SUPERFÍCIE é o tipo de amarração
+   * que só aparece quando as duas coisas são medidas juntas.
+   */
+  --tx3: #56655a;
+  --hover: #dae7de;
+  --rowbd: rgba(14, 23, 16, 0.09);
+  /* #1f8f43 deixava --on-gold em 4,04:1. Um passo mais escuro leva o texto
+     do botão a 4,52:1, e a diferença de matiz não se vê. */
+  --gold: #1d8840;
+  --gold-fill: rgba(31, 143, 67, 0.12);
+  --gold-tx: #186e34;
+  --on-gold: #ffffff;
+  --pos: #1f8f43;
+  --neg: #a83232;
+  /* --pos como texto dava 4,14:1 sobre --card. --neg já passava; fica
+     declarado do mesmo jeito para o uso ser explícito. */
+  --pos-tx: #1b7c3a;
+  --neg-tx: #a83232;
+  --ok-bg: rgba(31, 143, 67, 0.12);
+  --ok-tx: #186e34;
+  --soft-bg: rgba(14, 23, 16, 0.07);
+  --soft-tx: #4c5d50;
+  --warn-bg: rgba(160, 120, 20, 0.14);
+  --warn-tx: #7a5c10;
+  --neg-bg: rgba(168, 50, 50, 0.12);
+  /* Paleta de dados no claro. Os valores são mais escuros que os da
+     especificação porque são TEXTO sobre --elev (#e4ece6), e ali #0F6FA8 dava
+     4,45:1 e #9A6B00 3,9:1 — abaixo do mínimo. Medido pelo verificador. */
+  --c1: #186e34;
+  --c2: #0c5f92;
+  --c3: #7a5c10;
+  --c4: #a33232;
+  --c5: #56655a;
+  --f1: rgba(31, 143, 67, 0.16);
+  --f2: rgba(15, 111, 168, 0.16);
+  --f3: rgba(154, 107, 0, 0.16);
+  --f4: rgba(163, 50, 50, 0.16);
+  --f5: rgba(107, 125, 111, 0.14);
+  --tip: #ffffff;
+  --titulo-grad: linear-gradient(180deg, #0e1710 0%, #0e1710 42%, rgba(14, 23, 16, 0.5) 100%);
+  --botao-grad: linear-gradient(180deg, #2fb059 0%, #1f8f43 55%, #177235 100%);
+  --cabecalho-vidro: rgba(247, 251, 247, 0.78);
+  /* No claro o lustro é tinta, não luz: o cartão é branco sobre fundo
+     acinzentado, e quem o levanta é a sombra projetada, não o brilho. */
+  --lustro: rgba(14, 23, 16, 0.02);
+  --gold-bd: rgba(31, 143, 67, 0.28);
+  --sombra-cartao:
+    0 1px 2px rgba(14, 23, 16, 0.05), 0 4px 10px rgba(14, 23, 16, 0.05),
+    inset 0 -1px 0 rgba(14, 23, 16, 0.05);
+  --costura: linear-gradient(90deg, transparent, var(--gold), transparent);
+  --header-bg:
+    linear-gradient(rgba(14, 23, 16, 0.07) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgba(14, 23, 16, 0.07) 1px, transparent 1px) 0 0 / 44px 44px,
+    radial-gradient(65% 130% at 10% -20%, rgba(31, 143, 67, 0.1), transparent 60%), #f7fbf7;
+  --brand-bg: linear-gradient(90deg, rgba(31, 143, 67, 0.1), transparent 72%), #ffffff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/*
+ * ─── Escala tipográfica, trilha, raio e movimento ───────────────────────────
+ *
+ * Estes tokens NÃO mudam com o tema: descrevem forma, não cor. Ficam fora dos
+ * dois blocos acima de propósito — duplicá-los criaria a chance de divergirem.
+ *
+ * ── Por que a escala existe ──
+ *
+ * Medido antes de ela existir: **19 tamanhos de fonte distintos em 291 usos**,
+ * entre eles 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15, 16, 17, 18 e
+ * 19 — quinze valores num intervalo de 9 pixels. Ninguém distingue 12 de 12,5; o
+ * que se distingue é a AUSÊNCIA de sistema, e ela aparece como desalinho entre
+ * duas telas que deveriam dizer a mesma coisa do mesmo jeito.
+ *
+ * O mesmo valia para a trilha: `.1em` e `.12em` conviviam no MESMO papel (a
+ * sobrelinha), em componentes diferentes.
+ *
+ * O conjunto abaixo é FECHADO, e `npm run design` reprova valor fora dele. Não
+ * é rigor decorativo: sem o verificador, o vigésimo tamanho entra na próxima
+ * tela e o sistema volta a ser uma lista de números.
+ *
+ * ── Por que os degraus de baixo são apertados ──
+ *
+ * `--tipo-micro` a `--tipo-corpo` sobem ~8% por degrau, bem abaixo da razão
+ * clássica de 1,2. É deliberado: esta é uma interface DENSA, e são quatro
+ * papéis de texto secundário que carregam significado diferente numa mesma
+ * tabela. Do `--tipo-secao` para cima os degraus abrem (1,19 · 1,25 · 1,4),
+ * porque ali o salto é de hierarquia, não de densidade.
+ */
+:root {
+  /* Selo, crachá, índice de nota. O menor tamanho que ainda é legível aqui. */
+  --tipo-micro: 10.5px;
+  /* Legenda, ressalva sob painel, célula secundária. Também a sobrelinha
+     (caixa-alta), que usa este tamanho com `--trilha-ampla`. */
+  --tipo-legenda: 11.5px;
+  /* Texto de apoio: meta de cabeçalho, conteúdo de célula. */
+  --tipo-apoio: 12.5px;
+  /* Corpo e rótulo de campo. É o tamanho de leitura da interface, e o mesmo do
+     `body` — os 13,5px que apareciam em 22 lugares sobem para cá em vez de o
+     corpo descer, porque encolher o texto de leitura para fechar uma escala é
+     pagar legibilidade por simetria. */
+  --tipo-corpo: 14px;
+  /* Título de painel. */
+  --tipo-secao: 16px;
+  /* Título de bloco grande, fora do cabeçalho de página. */
+  --tipo-titulo: 20px;
+  /* `h1` de página. */
+  --tipo-display: 28px;
+  /* O NÚMERO de um indicador. Maior que o `h1` de propósito: numa tela de
+     métrica, o número é o assunto, e o título é onde ele fica. */
+  --tipo-numero: 40px;
+  /* O código de uma tela de erro (404, 500), e só ele. É o único tamanho
+     FLUIDO do sistema: `clamp` faz o número acompanhar a largura sem media
+     query nenhuma e sem estourar no celular. Fica como token, e não como valor
+     solto, porque um papel de tamanho fora do conjunto é o começo do vigésimo
+     tamanho — mesmo quando há um só lugar que o usa. */
+  --tipo-heroico: clamp(4.5rem, 22vw, 9rem);
+
+  /* Caixa-alta precisa de ar entre as letras; texto corrido, não. */
+  --trilha-ampla: 0.12em;
+  --trilha-media: 0.04em;
+  /* Número grande fecha um pouco: o espaçamento padrão foi desenhado para
+     texto, e em 32px ele abre demais. */
+  --trilha-justa: -0.02em;
+  /* Mais fechada ainda, para o número de indicador em peso leve. A referência
+     usa `tracking-tighter` exatamente aí: em peso 300 as letras já ficam
+     arejadas sozinhas, e sem fechar a trilha o número se desfaz. */
+  --trilha-fechada: -0.04em;
+
+  /*
+   * ── ESPAÇAMENTO ──
+   *
+   * Medido antes: 22 valores distintos de padding e gap, entre eles 6, 7, 9,
+   * 11, 14, 17, 18 e 20. É literalmente o "17px aqui, 23px ali" — e o efeito é
+   * o mesmo da escala tipográfica: ninguém aponta o erro, todo mundo sente que
+   * as telas não foram feitas juntas.
+   *
+   * Escala de 4 em 4, que é a base do brief e a convenção de SaaS. Os valores
+   * ímpares somem para o vizinho: 6 e 7 viram 8, 9 e 11 viram 12, 14 vira 16.
+   *
+   * Densidade: esta é uma ferramenta de operação, e o brief é explícito — nem
+   * espaçada como landing page, nem apertada. Por isso a escala começa em 4 e o
+   * respiro de cartão fica em `--esp-4` (16px), não em 24.
+   */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 20px;
+  --esp-6: 24px;
+  --esp-7: 32px;
+  --esp-8: 40px;
+  --esp-9: 48px;
+
+  --raio-p: 8px;
+  --raio-m: 12px;
+  /* Cartão e painel. A referência usa 16px (`rounded-2xl`) nos cartões e chega
+     a 20 e 32 nos blocos grandes — raio generoso é metade da assinatura dela.
+     16 é o quanto dá para subir aqui sem a tabela densa parecer um brinquedo. */
+  --raio-g: 16px;
+  --raio-pilula: 999px;
+
+  /*
+   * PESO. A marca registrada da referência: `font-light` em 248 usos e
+   * `font-extralight` em 46, contra 1 de `semibold`. Número grande em peso 300
+   * com trilha fechada é o que faz a peça parecer cara — o contrário do
+   * negrito, que é o reflexo de quem quer dar ênfase sem hierarquia.
+   *
+   * REGRA: peso leve só em tamanho GRANDE (display, número, heroico). Peso fino
+   * reduz o contraste PERCEBIDO, e a WCAG não desconta isso — a medição passa e
+   * o olho reprova. Este painel é feito de legenda pequena, e ali o peso
+   * continua sendo o normal.
+   */
+  --peso-leve: 300;
+  --peso-medio: 500;
+  --peso-forte: 600;
+
+  /* Movimento. As durações eram literais espalhadas; o bloco
+     `prefers-reduced-motion` abaixo continua zerando todas. */
+  --mov-rapido: 140ms;
+  --mov-medio: 240ms;
+  --mov-lento: 420ms;
+  /* Desaceleração forte: rápida no início, assentando no fim. É o que faz a
+     entrada parecer que PAROU, em vez de ter sido interrompida. */
+  --curva-saida: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--tx);
+  font-family: var(--fonte-ui), system-ui, sans-serif;
+  font-size: var(--tipo-corpo);
+  /* `leading-relaxed` da referência: 62 usos. Texto corrido respira. */
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Números e rótulos técnicos em monoespaçada, como no protótipo. */
+.mono {
+  font-family: var(--fonte-mono), ui-monospace, monospace;
+}
+
+a {
+  color: var(--gold-tx);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Foco sempre visível: a navegação por teclado é requisito, não detalhe. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: var(--raio-p);
+}
+
+select option {
+  background: var(--elev);
+  color: var(--tx);
+}
+
+/* Quem pediu menos movimento não recebe animação alguma. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Grades responsivas: um cartão por linha no celular, quatro no desktop. */
+.grade-cartoes {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+}
+
+.grade-dupla {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+}
+
+/* Espaçamento das páginas em um lugar só.
+   O respiro lateral diminui no celular, mas nunca chega a zero. */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 22px 32px 40px;
+  min-width: 0;
+}
+
+.cabecalho {
+  padding: 24px 32px;
+}
+
+/* As abas do site rolam sozinhas quando não cabem, em vez de empurrar a
+   página e criar barra de rolagem lateral. */
+.abas {
+  padding: 0 32px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--bd);
+}
+.abas::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .pagina {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .cabecalho {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .abas {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* Itens de grade encolhem abaixo do conteúdo. Sem isto, uma tabela larga
+   estoura a coluna em vez de rolar dentro do próprio painel. */
+.grade-dupla > *,
+.grade-cartoes > * {
+  min-width: 0;
+}
+
+/* ==========================================================================
+   Cartão de vidro: login e telas de erro
+   ==========================================================================
+
+   O visual veio de um componente pronto (shadcn + Tailwind + framer-motion +
+   lucide). Nada disso entrou no projeto: instalar Tailwind aqui trocaria o
+   sistema visual inteiro, e framer-motion custaria ~40 kB de JS para animar
+   quatro retângulos que o CSS anima de graça. O que foi adaptado é a
+   APARÊNCIA — cartão de vidro, feixes correndo a borda, brilhos de canto —
+   nos tokens do tema, em verde e não em roxo.
+
+   As animações daqui não precisam de guarda própria: o bloco
+   `prefers-reduced-motion` acima zera a duração de toda animação da página.
+
+   Os nomes são `cartao-vidro` e `veu-de-fundo`, e não `...-login`: as telas de
+   404 e de erro usam os mesmos blocos. Classe chamada "login" usada fora do
+   login é o tipo de nome que faz alguém mexer no lugar errado. */
+
+/*
+ * Véu entre a chuva e o conteúdo.
+ *
+ * Escurecer o FUNDO é diferente de apagar a chuva: baixar a opacidade do canvas
+ * apagaria o dígito inteiro, rastro incluído, e o efeito sumiria. O véu deixa o
+ * contraste interno da chuva intacto e só reduz o quanto ela compete com o
+ * texto — mais forte no centro, que é onde o cartão fica.
+ *
+ * No tema claro o véu é BRANCO, não preto. A intenção é a mesma (afastar o
+ * fundo do primeiro plano); preto sobre uma tela clara faria o contrário.
+ */
+.veu-de-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 50% 50%, rgba(0, 0, 0, 0.88), transparent 100%),
+    rgba(0, 0, 0, 0.62);
+}
+
+[data-tema='claro'] .veu-de-fundo {
+  background:
+    radial-gradient(60% 55% at 50% 50%, rgba(255, 255, 255, 0.9), transparent 100%),
+    rgba(255, 255, 255, 0.7);
+}
+
+.cartao-vidro {
+  position: relative;
+  border-radius: var(--raio-g);
+  padding: 26px 22px;
+  background: color-mix(in srgb, var(--card) 76%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--bd);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+/* Trama diagonal quase invisível, que tira o "chapado" do fundo do cartão. */
+.cartao-vidro::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image:
+    linear-gradient(135deg, var(--tx) 0.5px, transparent 0.5px),
+    linear-gradient(45deg, var(--tx) 0.5px, transparent 0.5px);
+  background-size: 30px 30px;
+}
+
+/* Feixes que percorrem a borda. Decorativos: `aria-hidden` no elemento. */
+.feixes {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--raio-g);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.feixe {
+  position: absolute;
+  opacity: 0.55;
+  filter: blur(1px);
+}
+
+.feixe-h {
+  height: 2px;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.feixe-v {
+  width: 2px;
+  height: 45%;
+  background: linear-gradient(180deg, transparent, var(--gold), transparent);
+}
+
+.feixe-topo {
+  top: 0;
+  left: -45%;
+  animation: feixe-para-direita 3.6s ease-in-out infinite;
+}
+.feixe-direita {
+  top: -45%;
+  right: 0;
+  animation: feixe-para-baixo 3.6s ease-in-out 0.9s infinite;
+}
+.feixe-base {
+  bottom: 0;
+  right: -45%;
+  animation: feixe-para-esquerda 3.6s ease-in-out 1.8s infinite;
+}
+.feixe-esquerda {
+  bottom: -45%;
+  left: 0;
+  animation: feixe-para-cima 3.6s ease-in-out 2.7s infinite;
+}
+
+@keyframes feixe-para-direita {
+  0% {
+    left: -45%;
+  }
+  70%,
+  100% {
+    left: 100%;
+  }
+}
+@keyframes feixe-para-esquerda {
+  0% {
+    right: -45%;
+  }
+  70%,
+  100% {
+    right: 100%;
+  }
+}
+@keyframes feixe-para-baixo {
+  0% {
+    top: -45%;
+  }
+  70%,
+  100% {
+    top: 100%;
+  }
+}
+@keyframes feixe-para-cima {
+  0% {
+    bottom: -45%;
+  }
+  70%,
+  100% {
+    bottom: 100%;
+  }
+}
+
+/* Campo com ícone à esquerda e, na senha, botão de revelar à direita. */
+.campo-login {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.campo-login > svg {
+  position: absolute;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  color: var(--tx3);
+  pointer-events: none;
+  transition: color 0.2s ease;
+}
+
+.campo-login:focus-within > svg {
+  color: var(--gold-tx);
+}
+
+.campo-login > input {
+  width: 100%;
+  background: var(--elev);
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-m);
+  padding: 12px 12px 12px 36px;
+  font-size: var(--tipo-corpo);
+  color: var(--tx);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.campo-login > input:focus {
+  border-color: var(--bdc);
+  box-shadow: 0 0 0 3px var(--gold-fill);
+}
+
+.campo-login:has(> .revelar-senha) > input {
+  padding-right: 40px;
+}
+
+.revelar-senha {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--raio-p);
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+}
+
+.revelar-senha:hover {
+  color: var(--tx);
+}
+
+/* Rodela do botão enquanto a Server Action responde. */
+.girando {
+  width: 15px;
+  height: 15px;
+  border: 2px solid color-mix(in srgb, var(--on-gold) 45%, transparent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Texto só para leitor de tela. Existe porque vários indicadores do painel são
+   ícones ou cores — e cor não é informação para quem não a vê. Recorte de 1px
+   em vez de `display:none`, que tiraria o texto da árvore de acessibilidade. */
+.apenas-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   Navegação: estados de ponteiro e teclado
+   ==========================================================================
+
+   Vive em CSS, e não em estilo inline, por um motivo simples: `:hover` não
+   existe em estilo inline. Estava tudo inline, e por isso os itens do menu não
+   reagiam ao ponteiro. */
+
+.item-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--raio-p);
+  font-weight: 500;
+  font-size: var(--tipo-corpo);
+  text-decoration: none;
+  color: var(--tx2);
+  background: transparent;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.item-menu:hover {
+  background: var(--hover);
+  color: var(--tx);
+}
+
+.item-menu[aria-current='page'] {
+  color: var(--tx);
+  background: var(--gold-fill);
+  box-shadow: inset 2px 0 0 var(--gold);
+}
+
+/* O item ativo não clareia mais ao passar o mouse: ele já é o destaque da tela,
+   e piscar ao encostar o ponteiro só tira a atenção do que mudou. */
+.item-menu[aria-current='page']:hover {
+  background: var(--gold-fill);
+}
+
+.aba-site {
+  padding: 11px 14px;
+  font-size: var(--tipo-corpo);
+  text-decoration: none;
+  color: var(--tx2);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.aba-site:hover {
+  color: var(--tx);
+  background: var(--hover);
+  border-bottom-color: var(--bd);
+}
+
+.aba-site[aria-current='page'] {
+  color: var(--tx);
+  font-weight: 600;
+  border-bottom-color: var(--gold);
+}
+
+/* ==========================================================================
+   Entrada suave
+   ==========================================================================
+
+   Um deslocamento de 6px e um fade. O escalonamento é por posição, em CSS, e
+   não por um atraso calculado em JavaScript — que exigiria o componente saber
+   quantos irmãos tem.
+
+   Nada aqui precisa de guarda própria: o bloco `prefers-reduced-motion` no topo
+   deste arquivo zera a duração de toda animação, e `both` garante que o
+   elemento termine no estado final mesmo com duração quase nula. Quem pede
+   menos movimento vê a tela pronta, não uma tela vazia. */
+
+@keyframes entrada-suave {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pagina > * {
+  animation: entrada-suave var(--mov-lento) var(--curva-saida) both;
+}
+
+/*
+ * O CARTÃO — a receita da referência, traduzida.
+ *
+ * Lá:  bg-zinc-900/50 · rounded-2xl · border border-zinc-800
+ *      shadow-[inset_0_1px_10px_rgba(0,0,0,1), 0_1px_0_rgba(255,255,255,.05)]
+ *      + um hairline em gradiente atravessando o topo, sumindo nas pontas.
+ *
+ * Três razões para isto ser classe e não estilo inline: `::before` (a costura),
+ * `overflow` que a contém, e o fato de o tratamento ser UM — repetido inline em
+ * cada componente, ele divergiria na primeira correção feita só num.
+ *
+ * O lustro entra POR CIMA de `--card`, e não no lugar dele: os valores de
+ * `--card` vêm do protótipo, e trocá-los mudaria toda superfície de uma vez.
+ */
+.cartao {
+  position: relative;
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-g);
+  background: linear-gradient(180deg, var(--lustro), transparent 45%), var(--card);
+  box-shadow: var(--sombra-cartao);
+  /* Contém a costura: sem isto ela vaza pelas quinas arredondadas. */
+  overflow: hidden;
+}
+
+/*
+ * A COSTURA. Uma linha de luz atravessando a borda de cima, como uma fresta.
+ * Metade da largura, centrada, sumindo nas duas pontas — a ponta dura seria um
+ * traço; a que some é luz.
+ */
+.cartao::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 25%;
+  width: 50%;
+  height: 1px;
+  background: var(--costura);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/*
+ * TABELA — hover de linha e cabeçalho fixo.
+ *
+ * Num sistema de operação as pessoas passam o tempo lendo linha de tabela, e
+ * não havia realce nenhum ao apontar: em tabela larga o olho perde a linha
+ * entre a primeira coluna e a última. É `:hover`, então é classe — não existe
+ * em estilo inline.
+ *
+ * O realce usa `--hover`, o degrau mais alto da escala de superfície. Sutil de
+ * propósito: linha realçada não pode competir com o dado que ela carrega.
+ */
+/*
+ * ENTRADA ESCALONADA das linhas.
+ *
+ * Adaptado de um componente que usa `framer-motion` com `staggerChildren: 0.25`
+ * e 0,5s por linha. A ideia — as linhas assentando uma após a outra — é boa; os
+ * números, não: seis linhas levariam 1,5s até a última aparecer, e numa
+ * ferramenta de operação isso é lentidão vestida de polimento. Quem abre a tela
+ * quer LER a tabela.
+ *
+ * Aqui o passo é 35ms e a duração vem de `--mov-medio`: a cascata continua
+ * perceptível e a última linha chega em menos de meio segundo. O escalonamento
+ * é por posição em CSS, não por índice em JavaScript — que exigiria a linha
+ * saber quantas irmãs tem, e transformaria a tabela em componente cliente.
+ *
+ * `both` garante o estado final mesmo com duração quase nula, e o bloco
+ * `prefers-reduced-motion` no topo zera tudo: quem pede menos movimento vê a
+ * tabela pronta, nunca uma tabela vazia.
+ */
+@keyframes linha-entra {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tabela-linha {
+  animation: linha-entra var(--mov-medio) var(--curva-saida) both;
+  transition: background-color var(--mov-rapido) ease;
+}
+
+/* Sete degraus. Da oitava linha em diante todas entram juntas: uma cascata de
+   trinta linhas viraria espera, e o ganho de percepção acaba bem antes disso. */
+.tabela-linha:nth-child(2) { animation-delay: 35ms; }
+.tabela-linha:nth-child(3) { animation-delay: 70ms; }
+.tabela-linha:nth-child(4) { animation-delay: 105ms; }
+.tabela-linha:nth-child(5) { animation-delay: 140ms; }
+.tabela-linha:nth-child(6) { animation-delay: 175ms; }
+.tabela-linha:nth-child(7) { animation-delay: 210ms; }
+.tabela-linha:nth-child(n + 8) { animation-delay: 245ms; }
+.tabela-linha:hover {
+  background: var(--hover);
+}
+
+/*
+ * Cabeçalho que fica. Vale para tabela alta: rolar dez linhas e não saber mais
+ * qual coluna é qual é o defeito que isto resolve.
+ *
+ * `background` é obrigatório — sem ele o conteúdo passa POR BAIXO e o
+ * cabeçalho vira texto sobreposto. E ele precisa ser opaco: o degrau `--card`
+ * é a superfície em que a tabela vive.
+ */
+.tabela-fixa thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card);
+}
+
+/* Elevação ao apontar.
+   Só o que LEVA a algum lugar sobe — cartão sem destino que reage ao ponteiro
+   promete um clique que não existe. Mora aqui, e não em estilo inline, pela
+   razão de sempre: `:hover` não existe em `style={{}}`.
+   A transição usa o token de duração; o bloco `prefers-reduced-motion` no topo
+   do arquivo zera as duas propriedades para quem pede menos movimento, e aí o
+   cartão troca de sombra sem deslizar. */
+.cartao-elevado {
+  transition:
+    box-shadow var(--mov-medio) var(--curva-saida),
+    transform var(--mov-medio) var(--curva-saida);
+}
+.cartao-elevado:hover {
+  /* `!important` não é desleixo: a sombra de repouso é estilo INLINE (a
+     convenção do projeto), e inline vence classe por especificidade. Sem ele o
+     `:hover` não pinta nada. A alternativa seria tirar a sombra de repouso do
+     inline e criar mais uma classe — mais arquivo para a mesma coisa. */
+  box-shadow: var(--sombra-2) !important;
+  transform: translateY(-2px);
+}
+.pagina > *:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.pagina > *:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.pagina > *:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.pagina > *:nth-child(n + 5) {
+  animation-delay: 0.16s;
+}
+
+/* ==========================================================================
+   Casca do painel: barra lateral no desktop, faixa no celular
+   ==========================================================================
+
+   O layout era um `flex-wrap` com o aside pedindo 240px. Abaixo dessa largura
+   o aside quebrava para uma linha própria e ocupava a TELA INTEIRA: no celular
+   era preciso rolar o menu completo — marca, seis itens e o rodapé de conta —
+   antes de chegar a qualquer número. A correção é trocar o eixo, não encolher
+   o menu. */
+
+.casca-painel {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+/*
+ * ─── BARRA LATERAL RECOLHÍVEL ───
+ *
+ * Adaptado de um componente que expandia ao passar o MOUSE. Aqui é por BOTÃO, e
+ * a escolha persiste — num sistema de operação, uma barra que abre e fecha
+ * sozinha desloca o conteúdo toda vez que o ponteiro a cruza sem intenção, e
+ * passagem de mouse não existe para quem navega por teclado.
+ *
+ * A transição é `width` em CSS, não `framer-motion`: animar uma largura não
+ * justifica a dependência. O bloco `prefers-reduced-motion` já zera a duração.
+ *
+ * Abaixo de 860px nada disto vale: lá a navegação vira a barra INFERIOR, ao
+ * alcance do polegar — decisão registrada e com teste de navegador.
+ */
+.lateral {
+  transition: flex-basis var(--mov-medio) var(--curva-saida);
+  flex: 0 0 248px;
+  min-width: 0;
+  background: var(--side);
+  border-right: 1px solid var(--bd);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 14px 24px;
+}
+
+/* A marca e o botão dividem a linha; o botão só existe no desktop. */
+.lateral-marca {
+  position: relative;
+}
+
+.botao-recolher {
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-pilula);
+  background: var(--elev);
+  color: var(--tx2);
+  font-size: var(--tipo-legenda);
+  line-height: 1;
+  transition:
+    color var(--mov-rapido) ease,
+    border-color var(--mov-rapido) ease;
+}
+.botao-recolher:hover {
+  color: var(--gold-tx);
+  border-color: var(--gold-bd);
+}
+
+@media (max-width: 860px) {
+  .botao-recolher {
+    display: none;
+  }
+}
+
+/* ── Sino de avisos (cabeçalho) ── */
+
+.sino-avisos {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-p);
+  background: var(--elev);
+  color: var(--tx2);
+  text-decoration: none;
+  transition:
+    color var(--mov-rapido) ease,
+    border-color var(--mov-rapido) ease;
+}
+.sino-avisos:hover,
+.sino-avisos:focus-visible {
+  color: var(--gold-tx);
+  border-color: var(--gold-bd);
+}
+/* A contagem é um selo sobre o canto, como a contagem do menu recolhido. A
+   cor diz a pior gravidade presente: vermelho só quando há aviso alto. */
+.sino-avisos-contagem {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--raio-pilula);
+  font-size: var(--tipo-micro);
+  line-height: 18px;
+  text-align: center;
+  background: var(--warn-bg);
+  border: 1px solid var(--bd);
+  color: var(--warn-tx);
+}
+.sino-avisos-contagem[data-gravidade='alta'] {
+  background: var(--neg-bg);
+  color: var(--neg-tx);
+}
+
+/* ── Estado recolhido ── */
+
+[data-menu='recolhido'] .lateral {
+  flex-basis: 64px;
+  padding-left: var(--esp-2);
+  padding-right: var(--esp-2);
+}
+
+/* O rótulo sai da TELA, nunca da árvore de acessibilidade: o item continua
+   sendo um link COM NOME. `display: none` tiraria o nome junto, e o leitor de
+   tela anunciaria seis links sem rótulo. */
+[data-menu='recolhido'] .item-menu .rotulo-menu {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+[data-menu='recolhido'] .item-menu {
+  justify-content: center;
+  gap: 0;
+  position: relative;
+}
+
+/* A contagem vira selo sobre o ícone — sem isto ela sumiria junto com o
+   rótulo, e "Clientes 2" perderia o 2, que é metade da informação. */
+[data-menu='recolhido'] .contagem-menu {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  margin: 0;
+  min-width: 15px;
+  padding: 0 3px;
+  border-radius: var(--raio-pilula);
+  background: var(--ok-bg);
+  border: 1px solid var(--gold-bd);
+  color: var(--gold-tx);
+  text-align: center;
+  line-height: 14px;
+}
+
+/* A dica responde a ponteiro E a foco. Só no ponteiro excluiria quem navega
+   por teclado — e é justamente recolhida que o rótulo some da tela. */
+[data-menu='recolhido'] .item-menu::after {
+  content: attr(data-rotulo);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: var(--esp-1) var(--esp-2);
+  border-radius: var(--raio-p);
+  background: var(--elev);
+  border: 1px solid var(--bd);
+  color: var(--tx);
+  font-size: var(--tipo-apoio);
+  box-shadow: var(--sombra-2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--mov-rapido) ease;
+  z-index: 30;
+}
+[data-menu='recolhido'] .item-menu:hover::after,
+[data-menu='recolhido'] .item-menu:focus-visible::after {
+  opacity: 1;
+}
+
+/* A marca encolhe para o símbolo, e o nome da conta some. O "Sair" NÃO some:
+   esconder a saída da conta atrás de outra tela é o tipo de coisa que ninguém
+   percebe até precisar. */
+[data-menu='recolhido'] .lateral-marca .marca-texto,
+[data-menu='recolhido'] .lateral-rodape-texto {
+  display: none;
+}
+
+/* Recolhida, o rodapé empilha: avatar em cima, "Sair" embaixo — lado a lado
+   não cabe em 64px. */
+[data-menu='recolhido'] .lateral-rodape {
+  flex-direction: column;
+  gap: var(--esp-2);
+  align-items: center;
+}
+
+.lateral-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lateral-rodape {
+  margin-top: auto;
+  border-top: 1px solid var(--bd);
+  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.conteudo-painel {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 860px) {
+  .casca-painel {
+    flex-direction: column;
+  }
+
+  /* Uma faixa horizontal de ~56px, grudada no topo, em vez de uma barra lateral
+     que ocupava a tela inteira antes do conteúdo. Navegação, conta e "Sair"
+     dividem a MESMA linha: cada linha extra aqui é uma linha a menos de dado.
+     O `z-index` a mantém acima do canvas do cabeçalho, que é `absolute`. */
+  .lateral {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    border-right: none;
+    border-bottom: 1px solid var(--bd);
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  /* A marca já aparece no cabeçalho de cada tela; repeti-la aqui custaria uma
+     faixa inteira da altura útil do celular. */
+  .lateral-marca {
+    display: none;
+  }
+
+  /* Rola na horizontal em vez de empilhar. `min-width: 0` é o que permite ao
+     item flexível encolher abaixo do conteúdo — sem ele a faixa empurraria o
+     rodapé para fora da tela. */
+  .lateral-nav {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 2px;
+  }
+  .lateral-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .item-menu {
+    white-space: nowrap;
+    padding: 9px 12px;
+    gap: 8px;
+  }
+
+  /* O indicador do item ativo era uma barra à esquerda; deitado, ele precisa
+     ficar embaixo, senão desaparece entre dois itens vizinhos. */
+  .item-menu[aria-current='page'] {
+    box-shadow: inset 0 -2px 0 var(--gold);
+  }
+
+  .lateral-rodape {
+    flex: none;
+    margin-top: 0;
+    border-top: none;
+    border-left: 1px solid var(--bd);
+    padding: 0 0 0 10px;
+  }
+
+  /* O nome da conta sai; ele já está no título da Visão geral, e aqui custaria
+     a largura que a navegação precisa. O botão "Sair" fica — esconder uma
+     função para ganhar espaço é outra coisa. */
+  .lateral-rodape > div > div:first-child {
+    display: none;
+  }
+}
+
+
+/* Telas com recorte (notch, ilha, cantos arredondados).
+   `viewport-fit=cover` deixa a interface ir até a borda; estas regras devolvem
+   o respiro onde ele é necessário. Sem elas, a faixa de navegação fica embaixo
+   do relógio do sistema quando o painel roda instalado, em tela cheia. */
+@media (max-width: 860px) {
+  /*
+   * O CABEÇALHO é o primeiro elemento da tela no celular — a barra lateral não
+   * existe mais aqui. Sem este respiro, o título fica debaixo do relógio e da
+   * bateria do sistema, e é pior ainda com o painel instalado como aplicativo,
+   * onde não há barra do navegador empurrando nada para baixo.
+   *
+   * `max()` e não `+`: em aparelho sem recorte o inset é 0, e somar daria um
+   * respiro grande demais. Assim o piso é 18px e o recorte só manda quando é
+   * maior que isso.
+   */
+  .cabecalho {
+    padding-top: max(18px, env(safe-area-inset-top, 0px));
+    padding-bottom: 18px;
+  }
+
+  .pagina,
+  .cabecalho,
+  .abas {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Alvos de toque: o mínimo confortável é ~44px. Vale só onde o ponteiro é
+   grosseiro — no mouse, botões desse tamanho deixam a interface esparramada. */
+@media (pointer: coarse) {
+  .item-menu,
+  .aba-site {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  button,
+  select,
+  input[type='checkbox'],
+  input[type='radio'] {
+    /* Não força altura em tudo: só garante que nada fique abaixo do alcance
+       do dedo. Campos de texto já têm padding suficiente. */
+    min-height: 40px;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    min-height: 0;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* ==========================================================================
+   Navegação de rodapé (celular)
+   ==========================================================================
+
+   Fixa embaixo, onde o polegar alcança. Substitui a faixa de navegação do topo:
+   duas barras custariam duas vezes a altura útil, e a de cima ficava longe da
+   mão em telas grandes.
+
+   O facho sobre o item ativo é o efeito do componente de referência, escrito
+   nos tokens do tema. A posição vem de medição do DOM (veja `MenuInferior`),
+   porque os itens não têm largura igual. */
+
+.menu-inferior {
+  display: none;
+}
+
+.facho {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  width: 44px;
+  height: 3px;
+  border-radius: var(--raio-pilula);
+  background: var(--gold);
+  box-shadow: 0 0 14px 2px var(--gold);
+}
+
+/* A transição só liga depois da primeira colocação; senão o facho desliza da
+   borda esquerda da tela até o item ativo no primeiro quadro. */
+.facho-animado {
+  transition:
+    left 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.2s ease;
+}
+
+/* O cone de luz descendo do facho. Recortado num trapézio: uma barra retangular
+   pareceria uma sombra, não um facho. */
+.facho-cone {
+  position: absolute;
+  left: -30%;
+  top: 3px;
+  width: 160%;
+  height: 54px;
+  pointer-events: none;
+  clip-path: polygon(5% 100%, 25% 0, 75% 0, 95% 100%);
+  background: linear-gradient(to bottom, var(--gold-fill), transparent);
+}
+
+@media (max-width: 860px) {
+  .menu-inferior {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: stretch;
+    background: var(--side);
+    border-top: 1px solid var(--bd);
+    /* O respiro da barra de gestos do celular vem daqui; sem ele o rótulo fica
+       debaixo da faixa do sistema. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /*
+     * `hidden`, e não `auto`.
+     *
+     * Com rolagem, arrastar a barra para o lado parecia a página inteira
+     * deslizando — e numa barra fixa de rodapé isso é o gesto errado no lugar
+     * errado. Os seis destinos precisam CABER. Quem garante isso é o
+     * `flex: 1 1 0` com `min-width: 0` nos itens: eles dividem a largura em
+     * partes iguais, e o rótulo é dimensionado para caber na menor delas.
+     */
+    overflow-x: hidden;
+  }
+
+  .item-inferior {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    /* Divide a largura em partes iguais e NUNCA estoura: `min-width: 0` é o que
+       permite ao item flexível encolher abaixo do próprio conteúdo. A altura é
+       que dá o alvo de toque confortável, não a largura. */
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 62px;
+    padding: 10px 2px 9px;
+    text-decoration: none;
+    color: var(--tx3);
+    transition: color 0.18s ease;
+  }
+
+  .item-inferior[aria-current='page'] {
+    color: var(--gold-tx);
+  }
+
+  .item-inferior:hover {
+    color: var(--tx);
+  }
+
+  .item-inferior-icone {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /*
+   * O rótulo acompanha a largura disponível: `clamp` entre 9px e 11px, com a
+   * referência em `vw`. Numa tela de 430px ele fica em 11px; numa de 360px,
+   * encolhe até caber "Configurações" sem cortar. Cortar o nome do destino é
+   * pior que reduzi-lo.
+   */
+  .item-inferior-rotulo {
+    font-size: clamp(9px, 2.5vw, 11px);
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .item-inferior-contagem {
+    position: absolute;
+    top: -7px;
+    left: 13px;
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: var(--raio-pilula);
+    background: var(--gold);
+    color: var(--on-gold);
+    font-size: var(--tipo-micro);
+    line-height: 16px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  /* A barra lateral inteira sai do celular: a navegação foi para o rodapé, e
+     conta e "Sair" moraram numa faixa de 68px que não mostrava mais nada. Os
+     dois foram para a tela de Configurações, que é um destino do próprio menu.
+     São 68px de conteúdo recuperados em TODA tela. */
+  .lateral {
+    display: none;
+  }
+
+  /* O canvas do cabeçalho é `position: absolute; inset: 0` e, com o respiro do
+     recorte, ele passaria a cobrir a área segura. Fica atrás do conteúdo, o que
+     já é o caso — mas o recorte precisa continuar limpo. */
+  .cabecalho > canvas {
+    top: env(safe-area-inset-top, 0px);
+  }
+
+  /* O conteúdo não pode terminar debaixo da barra fixa. */
+  .conteudo-painel {
+    padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ==========================================================================
+   Cartão de site
+   ==========================================================================
+
+   Substitui a tabela de sete colunas, que rolava na horizontal até no
+   computador. A cor da faixa é o ESTADO DA CONFIGURAÇÃO — é ela que responde
+   "onde eu preciso mexer?" antes de qualquer leitura. */
+
+.grade-sites {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+
+.cartao-site-saude {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  font-size: var(--tipo-legenda);
+  color: var(--tx2);
+  min-width: 0;
+}
+.cartao-site-saude > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Grupo por cliente. O cabeçalho é uma linha só — avatar, nome, contagem —
+   porque o que importa está nos cartões; o grupo só diz DE QUEM eles são. */
+.grupo-cliente-topo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  margin-bottom: var(--esp-3);
+  padding-bottom: var(--esp-2);
+  border-bottom: 1px solid var(--bd);
+}
+.grupo-cliente-nome {
+  font-size: var(--tipo-secao);
+  font-weight: var(--peso-forte);
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grupo-cliente-nome a {
+  color: var(--tx);
+  text-decoration: none;
+}
+.grupo-cliente-nome a:hover {
+  color: var(--gold-tx);
+}
+.grupo-cliente-meta {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--tipo-legenda);
+  letter-spacing: var(--trilha-media);
+  color: var(--tx3);
+}
+
+.cartao-site {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-m);
+  background: var(--card);
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Reage ao ponteiro, mas sem levantar: um cartão que sobe empurra o olhar e,
+   numa grade de sete, vira pipoca. */
+.cartao-site:hover {
+  border-color: var(--bdc);
+}
+
+.cartao-site-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cartao-site-cliente {
+  font-size: var(--tipo-legenda);
+  color: var(--tx2);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cartao-site-cliente:hover {
+  color: var(--tx);
+}
+
+.cartao-site-estado {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: var(--raio-pilula);
+  font-size: var(--tipo-micro);
+  white-space: nowrap;
+}
+
+.cartao-site-nome {
+  font-size: var(--tipo-secao);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.cartao-site-nome a {
+  color: var(--tx);
+  text-decoration: none;
+}
+.cartao-site-nome a:hover {
+  color: var(--gold-tx);
+}
+
+.cartao-site-dominio {
+  margin-top: 3px;
+  font-size: var(--tipo-legenda);
+  color: var(--tx3);
+  /* Domínio longo quebra em vez de esticar o cartão e estourar a grade. */
+  overflow-wrap: anywhere;
+}
+
+.cartao-site-progresso-rotulo {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--tipo-legenda);
+  color: var(--tx2);
+  margin-bottom: 5px;
+}
+
+.cartao-site-barra {
+  height: 4px;
+  border-radius: var(--raio-pilula);
+  background: var(--elev);
+  overflow: hidden;
+}
+.cartao-site-barra > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--raio-pilula);
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cartao-site-vazio,
+.cartao-site-falta {
+  font-size: var(--tipo-legenda);
+  line-height: 1.6;
+  color: var(--tx2);
+}
+
+.cartao-site-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--rowbd);
+}
+
+.cartao-site-coleta {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cartao-site-ultimo {
+  font-size: var(--tipo-micro);
+  color: var(--tx3);
+}
+
+.cartao-site-acao {
+  font-size: var(--tipo-apoio);
+  white-space: nowrap;
+}
+
+/* Duas ações no rodapé do cartão de site: editar o cadastro e abrir a
+   configuração. A de editar é a fraca — corrigir um domínio é raro, continuar a
+   configuração é o que o cartão existe para empurrar. */
+.cartao-site-acoes {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.cartao-site-acao-fraca {
+  color: var(--tx2);
+}
+
+.cartao-site-acao-fraca:hover {
+  color: var(--tx);
+}
+
+/* ─── Funil de leads ────────────────────────────────────────────────────────
+   Entrada escalonada e realce ao apontar, os dois em CSS.
+
+   Em CSS, e não em JavaScript, por dois motivos: o funil é componente de
+   SERVIDOR e transformá-lo em cliente para ganhar um `hover` adiaria a primeira
+   pintura sem trazer comportamento novo; e o bloco `prefers-reduced-motion` no
+   topo deste arquivo já zera a duração de toda animação da página — quem pede
+   menos movimento vê o funil pronto, não um funil que não aparece.
+
+   `both` garante o estado final mesmo com duração quase nula. Sem ele, o
+   desenho ficaria invisível justamente para quem pediu menos movimento. */
+@keyframes funil-entra {
+  from {
+    opacity: 0;
+    transform: scaleX(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+.funil-camada {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: funil-entra 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: opacity 160ms ease;
+}
+
+/* Ao apontar uma etapa, as outras recuam. O realce é comparativo: destacar sem
+   apagar o resto não ajuda a ler qual faixa é qual. */
+svg:has(.funil-etapa:hover) .funil-etapa:not(:hover) .funil-camada,
+svg:has(.funil-etapa:hover) .funil-etapa:not(:hover) text {
+  opacity: 0.45;
+}
+
+.funil-etapa:hover .funil-camada {
+  fill-opacity: 0.72;
+}
+
+/* Sem ponteiro (celular) não há `hover`, e o funil fica no estado normal — que
+   é o certo: o realce é um extra, nunca o que torna o gráfico legível. */
+@media (hover: none) {
+  .funil-etapa:hover .funil-camada {
+    fill-opacity: revert;
+  }
+}
+
+/* ==========================================================================
+   Impressão (relatório do cliente)
+   ==========================================================================
+
+   O PDF é o navegador imprimindo esta tela. Some o que é ferramenta (menu,
+   controles do cabeçalho, botões); fica o conteúdo, em fundo branco e texto
+   escuro — tinta preta sobre papel, não tema. */
+@media print {
+  .lateral,
+  .menu-inferior,
+  .nao-imprime,
+  .botao-recolher,
+  .sino-avisos,
+  .cabecalho canvas,
+  .cabecalho button,
+  .cabecalho form,
+  .cabecalho time {
+    display: none !important;
+  }
+  :root,
+  :root[data-tema='escuro'] {
+    color-scheme: light;
+  }
+  body,
+  .casca-painel,
+  .conteudo-painel,
+  .cabecalho,
+  .cartao,
+  .pagina {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+  .cabecalho h1 {
+    text-shadow: none !important;
+    color: black !important;
+  }
+  .cartao {
+    border: 1px solid #bbb !important;
+    break-inside: avoid;
+  }
+  .cartao::before {
+    display: none;
+  }
+  a {
+    color: black !important;
+    text-decoration: none !important;
+  }
+  .tabela-linha {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   Layout v2: menu fixo, cabeçalho de uma linha, cartões KPI
+   ========================================================================== */
+
+/* Menu lateral FIXO: a navegação rola dentro dele; marca e rodapé (conta)
+   ficam sempre à vista. Tema e FX ficam no cabeçalho, em toda largura. */
+@media (min-width: 861px) {
+  .lateral {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    height: 100dvh;
+  }
+  .lateral-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
+
+/* Cabeçalho de UMA linha, fixo no topo do conteúdo, translúcido. O que não
+   cabe numa linha (kicker, fuso, meta) desce para `.sub-cabecalho`. */
+.cabecalho {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 72px;
+  padding-top: var(--esp-3);
+  padding-bottom: var(--esp-3);
+  background: var(--cabecalho-vidro);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.cabecalho-linha {
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--esp-4);
+  min-width: 0;
+}
+.cabecalho-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.cabecalho h1 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Gradiente recortado no texto. Incompatível com `text-shadow` (o brilho
+     pintaria por cima do recorte), então o `--glow` sai do h1 nesta versão. */
+  background-image: var(--titulo-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.cabecalho-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  font-size: var(--tipo-apoio);
+  color: var(--tx2);
+  white-space: nowrap;
+}
+.cabecalho-acoes {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--esp-2);
+  flex: none;
+}
+.sub-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--esp-2) var(--esp-4);
+  padding: var(--esp-3) 32px 0;
+  font-size: var(--tipo-apoio);
+  color: var(--tx2);
+}
+@media (max-width: 640px) {
+  .sub-cabecalho {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .cabecalho-status .cabecalho-status-texto {
+    display: none;
+  }
+}
+/* No celular o cabeçalho pode precisar de duas linhas: título em cima,
+   ações embaixo. Melhor que cortar o seletor de site. */
+@media (max-width: 860px) {
+  .cabecalho-linha {
+    flex-wrap: wrap;
+  }
+  .cabecalho-acoes {
+    flex-wrap: wrap;
+    flex: 1 1 100%;
+  }
+}
+
+/* Ponto de status pulsando: é o único elemento do cabeçalho que se move, e
+   se move porque afirma um estado vivo. */
+.ponto-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  animation: pulsa-status 2.4s ease-in-out infinite;
+}
+@keyframes pulsa-status {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+  50% { opacity: 0.55; box-shadow: 0 0 0 4px transparent; }
+}
+
+/* Abas + chips de período na mesma linha, chips à direita. */
+.abas-linha {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-4);
+  min-width: max-content;
+}
+.abas-direita {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  padding-left: var(--esp-4);
+}
+/* No celular a linha das abas rola, e os chips ficariam fora da tela, à
+   direita de "Configuração". Eles descem para uma segunda linha, à esquerda,
+   onde o polegar os alcança sem rolar. */
+@media (max-width: 640px) {
+  .abas-linha {
+    flex-wrap: wrap;
+    gap: var(--esp-2) 0;
+  }
+  .abas-direita {
+    flex: 1 1 100%;
+    margin-left: 0;
+    padding: 0 0 var(--esp-2);
+    position: sticky;
+    left: 0;
+  }
+}
+
+/* Cartão de indicador v2: filete de acento no topo, número tabular, rodapé
+   com variação + sparkline. */
+.cartao-kpi {
+  position: relative;
+  transition:
+    transform var(--mov-medio) var(--curva-saida),
+    box-shadow var(--mov-medio) var(--curva-saida),
+    border-color var(--mov-medio) ease;
+}
+.cartao-kpi::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--acento, var(--c1));
+}
+.cartao-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-2);
+}
+.kpi-numero {
+  font-variant-numeric: tabular-nums;
+}
+.kpi-rodape {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  margin-top: var(--esp-2);
+}
+.kpi-rodape > .kpi-sparkline {
+  flex: none;
+  width: 120px;
+  opacity: 0.9;
+}
+.cartao-kpi[data-secundario='true'] .kpi-sparkline {
+  opacity: 0.5;
+}
+
+/* Botão primário com gradiente: cresce ao apontar, encolhe ao clicar. */
+.botao-primario {
+  background: var(--botao-grad);
+  color: var(--on-gold);
+  border: none;
+  border-radius: var(--raio-p);
+  font-weight: var(--peso-forte);
+  cursor: pointer;
+  transition: transform var(--mov-rapido) ease, box-shadow var(--mov-rapido) ease;
+}
+.botao-primario:hover { transform: scale(1.03); box-shadow: var(--sombra-1); }
+.botao-primario:active { transform: scale(0.97); }
+
+/* Transição global curta nos controles. O bloco prefers-reduced-motion acima
+   zera a duração de tudo isto. */
+button, a, th, tr, input, select {
+  transition-property: color, background-color, border-color, box-shadow, transform;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
+/* ==========================================================================
+   Gráfico de evolução v2: traço que se desenha, barras que crescem, dica.
+   Nada aqui precisa de guarda própria: o bloco `prefers-reduced-motion` no
+   topo zera a duração de toda animação e transição da página.
+   ========================================================================== */
+.grafico-svg:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+  border-radius: var(--raio-p);
+}
+/* A linha principal se desenha da esquerda para a direita. `pathLength=1` no
+   SVG faz o traço inteiro valer 1 unidade, e o deslocamento vai de 1 a 0. */
+.grafico-linha {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: traca-linha 1.1s var(--curva-saida) forwards;
+}
+@keyframes traca-linha {
+  to { stroke-dashoffset: 0; }
+}
+.grafico-area {
+  animation: entrada-suave var(--mov-lento) ease both;
+}
+/* Cada dia cresce a partir do chão, com atraso de 22ms por dia (inline). */
+.grafico-barra {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+  animation: barra-cresce var(--mov-lento) var(--curva-saida) both;
+  transition: opacity var(--mov-rapido) ease;
+}
+@keyframes barra-cresce {
+  from { transform: scaleY(0); }
+}
+.grafico-dica {
+  background: var(--tip);
+  color: var(--tx);
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-p);
+  box-shadow: var(--sombra-2);
+  padding: var(--esp-2) var(--esp-3);
+  font-size: var(--tipo-legenda);
+  line-height: 1.5;
+  white-space: nowrap;
+  animation: dica-entra var(--mov-rapido) ease both;
+}
+@keyframes dica-entra {
+  from { opacity: 0; }
+}
+
+/* ==========================================================================
+   Tabela v2: cabeçalho ordenável, barra proporcional na célula
+   ========================================================================== */
+.ordenar {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* Alvo de toque: o link do cabeçalho tem a altura mínima, sem engordar
+     visualmente a linha — o padding negativo compensa o da célula. */
+  min-height: 44px;
+  margin: -11px 0;
+  border-radius: var(--raio-p);
+}
+.ordenar:hover,
+.ordenar:focus-visible {
+  color: var(--tx);
+}
+.ordenar-ativa,
+.ordenar-ativa:hover {
+  color: var(--gold-tx);
+  font-weight: var(--peso-forte);
+}
+.ordenar::after {
+  content: '\2195';
+  font-size: var(--tipo-legenda);
+  opacity: 0.55;
+}
+.ordenar[data-direcao='desc']::after { content: '\2193'; opacity: 1; }
+.ordenar[data-direcao='asc']::after { content: '\2191'; opacity: 1; }
+.celula-com-barra {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  min-width: 56px;
+}
+.celula-barra {
+  display: block;
+  height: 3px;
+  border-radius: var(--raio-pilula);
+  background: var(--elev);
+  overflow: hidden;
+}
+.celula-barra > i {
+  display: block;
+  height: 100%;
+  border-radius: var(--raio-pilula);
+  animation: barra-avanca var(--mov-lento) var(--curva-saida) both;
+}
+@keyframes barra-avanca {
+  from { width: 0; }
+}
+
+/* Fatias do anel de origem: cada arco cresce a partir do topo. */
+.donut-fatia {
+  animation: entrada-suave var(--mov-lento) ease both;
+}
+
+/* Cartões KPI entram em cascata, como as linhas da tabela: 60ms por cartão. */
+.grade-cartoes > .cartao-kpi:nth-child(2) { animation-delay: 60ms; }
+.grade-cartoes > .cartao-kpi:nth-child(3) { animation-delay: 120ms; }
+.grade-cartoes > .cartao-kpi:nth-child(4) { animation-delay: 180ms; }
+.grade-cartoes > .cartao-kpi:nth-child(n + 5) { animation-delay: 240ms; }
+.grade-cartoes > .cartao-kpi {
+  animation-name: entrada-suave;
+  animation-duration: var(--mov-lento);
+  animation-timing-function: var(--curva-saida);
+  animation-fill-mode: both;
+}
+
+/* ==========================================================================
+   V2 — Central de projetos (sem aparência de dashboard)
+   ==========================================================================
+
+   O que entra aqui é o que a V1 não tinha: a LINHA DE PROJETO, a lista de
+   trabalho e os filtros em pílula. Os tokens são os mesmos; a composição é
+   outra. Nenhum valor cru de cor, tamanho ou raio: `npm run design` reprova. */
+
+/* ── Barra de busca ── */
+.barra-busca {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.barra-busca > input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--elev);
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-m);
+  padding: 9px 12px;
+  font-size: var(--tipo-corpo);
+  color: var(--tx);
+}
+.barra-busca > input:focus {
+  border-color: var(--bdc);
+  box-shadow: 0 0 0 3px var(--gold-fill);
+  outline: none;
+}
+
+/* ── Filtros em pílula (Todos · Atenção · Favoritos · Arquivados) ── */
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+}
+.filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--raio-pilula);
+  border: 1px solid var(--bd);
+  background: var(--elev);
+  color: var(--tx2);
+  font-size: var(--tipo-apoio);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.filtro:hover {
+  color: var(--tx);
+  border-color: var(--gold-bd);
+  text-decoration: none;
+}
+.filtro[aria-current='true'] {
+  background: var(--gold-fill);
+  border-color: var(--gold-bd);
+  color: var(--gold-tx);
+}
+.filtro-contagem {
+  font-size: var(--tipo-micro);
+  letter-spacing: var(--trilha-media);
+  color: var(--tx3);
+}
+.filtro[aria-current='true'] .filtro-contagem {
+  color: var(--gold-tx);
+}
+
+/* ── Lista de projetos: uma linha por site ── */
+.lista-projetos {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-g);
+  background: linear-gradient(180deg, var(--lustro), transparent 45%), var(--card);
+  box-shadow: var(--sombra-cartao);
+  overflow: hidden;
+}
+.linha-projeto {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--esp-3) var(--esp-4);
+  padding: var(--esp-3) var(--esp-4);
+  border-bottom: 1px solid var(--rowbd);
+  animation: linha-entra var(--mov-medio) var(--curva-saida) both;
+  transition: background-color var(--mov-rapido) ease;
+}
+.linha-projeto:last-child {
+  border-bottom: none;
+}
+.linha-projeto:hover {
+  background: var(--hover);
+}
+.lista-projetos > .linha-projeto:nth-child(2) { animation-delay: 35ms; }
+.lista-projetos > .linha-projeto:nth-child(3) { animation-delay: 70ms; }
+.lista-projetos > .linha-projeto:nth-child(4) { animation-delay: 105ms; }
+.lista-projetos > .linha-projeto:nth-child(5) { animation-delay: 140ms; }
+.lista-projetos > .linha-projeto:nth-child(6) { animation-delay: 175ms; }
+.lista-projetos > .linha-projeto:nth-child(7) { animation-delay: 210ms; }
+.lista-projetos > .linha-projeto:nth-child(n + 8) { animation-delay: 245ms; }
+
+/* Iniciais do site, no lugar de uma miniatura que não existe. */
+.projeto-iniciais {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--raio-m);
+  border: 1px solid var(--bd);
+  background: var(--elev);
+  color: var(--tx2);
+  font-size: var(--tipo-apoio);
+  letter-spacing: var(--trilha-media);
+}
+.projeto-corpo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.projeto-titulo {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--esp-1) var(--esp-2);
+  min-width: 0;
+}
+.projeto-nome {
+  font-size: var(--tipo-corpo);
+  font-weight: var(--peso-forte);
+  color: var(--tx);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.projeto-nome:hover {
+  color: var(--gold-tx);
+  text-decoration: none;
+}
+.projeto-cliente {
+  font-size: var(--tipo-apoio);
+  color: var(--tx2);
+}
+.projeto-dominio {
+  font-size: var(--tipo-legenda);
+  color: var(--tx3);
+  overflow-wrap: anywhere;
+}
+.projeto-situacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-1) var(--esp-2);
+  font-size: var(--tipo-apoio);
+  color: var(--tx2);
+}
+.projeto-acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .linha-projeto {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  /* A frase quebra de linha no celular; o separador ficaria sozinho. */
+  .projeto-situacao > [aria-hidden='true'] {
+    display: none;
+  }
+  .projeto-acoes {
+    grid-column: 2;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+/* ── Selo de estado: texto SEMPRE, cor é reforço ── */
+.selo-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--raio-pilula);
+  border: 1px solid var(--bd);
+  font-size: var(--tipo-legenda);
+  white-space: nowrap;
+  background: var(--soft-bg);
+  color: var(--soft-tx);
+}
+.selo-estado > i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.selo-estado[data-tom='ok'] { background: var(--ok-bg); color: var(--ok-tx); border-color: var(--gold-bd); }
+.selo-estado[data-tom='warn'] { background: var(--warn-bg); color: var(--warn-tx); }
+.selo-estado[data-tom='neg'] { background: var(--neg-bg); color: var(--neg-tx); }
+.selo-estado[data-tom='soft'] { background: var(--soft-bg); color: var(--soft-tx); }
+
+/* ── Botões (linguagem única) ── */
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border-radius: var(--raio-p);
+  border: 1px solid var(--bd);
+  background: var(--elev);
+  color: var(--tx2);
+  font-size: var(--tipo-corpo);
+  font-weight: var(--peso-medio);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.botao:hover {
+  color: var(--tx);
+  border-color: var(--gold-bd);
+  text-decoration: none;
+}
+.botao:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.botao-primario {
+  padding: 9px 16px;
+}
+.botao-pequeno {
+  padding: 5px 10px;
+  font-size: var(--tipo-apoio);
+}
+.botao-perigo {
+  color: var(--neg-tx);
+}
+.botao-perigo:hover {
+  border-color: var(--neg);
+  color: var(--neg-tx);
+}
+
+/* ── Lista de trabalho (Atenção) ── */
+.lista-trabalho {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+}
+.item-trabalho {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-m);
+  background: var(--card);
+}
+.item-trabalho[data-tom='neg'] { border-left: 3px solid var(--neg); }
+.item-trabalho[data-tom='warn'] { border-left: 3px solid var(--warn-tx); }
+.item-trabalho[data-tom='soft'] { border-left: 3px solid var(--tx3); }
+.item-trabalho-texto {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.item-trabalho-titulo {
+  font-size: var(--tipo-corpo);
+  font-weight: var(--peso-medio);
+  color: var(--tx);
+}
+.item-trabalho-detalhe {
+  font-size: var(--tipo-apoio);
+  color: var(--tx2);
+}
+@media (max-width: 640px) {
+  .item-trabalho {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .item-trabalho > :last-child {
+    grid-column: 2;
+  }
+}
+
+/* ── Lista de definição (resumo do site, configurações) ── */
+.definicoes {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--esp-2) var(--esp-5);
+  font-size: var(--tipo-corpo);
+}
+.definicoes > dt {
+  color: var(--tx3);
+  font-size: var(--tipo-apoio);
+}
+.definicoes > dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .definicoes {
+    grid-template-columns: 1fr;
+    gap: var(--esp-1);
+  }
+  .definicoes > dd {
+    margin-bottom: var(--esp-2);
+  }
+}
+
+/* ── Faixa de demonstração ── */
+.faixa-demo {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-2);
+  padding: var(--esp-2) var(--esp-4);
+  background: var(--warn-bg);
+  color: var(--warn-tx);
+  border-bottom: 1px solid var(--bd);
+  font-size: var(--tipo-apoio);
+}
+
+/* ── Campos de formulário ── */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--tipo-apoio);
+  color: var(--tx2);
+}
+.campo > input,
+.campo > select,
+.campo > textarea {
+  width: 100%;
+  background: var(--elev);
+  border: 1px solid var(--bd);
+  border-radius: var(--raio-p);
+  padding: 10px 12px;
+  font-size: var(--tipo-corpo);
+  color: var(--tx);
+}
+.campo > input:focus,
+.campo > select:focus,
+.campo > textarea:focus {
+  border-color: var(--bdc);
+  box-shadow: 0 0 0 3px var(--gold-fill);
+  outline: none;
+}
+.campo > [aria-invalid='true'] {
+  border-color: var(--neg);
+}
+.campo-dica {
+  font-size: var(--tipo-legenda);
+  color: var(--tx3);
+}
+.campo-erro {
+  font-size: var(--tipo-legenda);
+  color: var(--neg-tx);
+}
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+  max-width: 560px;
+}
+.formulario-acoes {
+  display: flex;
+  gap: var(--esp-2);
+  flex-wrap: wrap;
+}
+.grade-campos {
+  display: grid;
+  gap: var(--esp-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+/* ── Página de referência ── */
+.amostra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-3);
+}
+.referencia-tema {
+  padding: var(--esp-5);
+  border-radius: var(--raio-g);
+  border: 1px solid var(--bd);
+  background: var(--bg);
+  color: var(--tx);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-5);
+}
