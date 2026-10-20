@@ -1,5 +1,30 @@
 # Progresso — JohnyWeb V2
 
+## Fase 5 — Relatórios, notificações e lançamento (20/10/2026)
+
+### Implementado e verificado localmente
+- **Relatórios**: `/relatorios` (seleção de cliente ou site e período 7/30/90 ou personalizado), `/relatorios/site/<id>` e `/relatorios/cliente/<id>` com cabeçalho de período e fuso, seções de disponibilidade, velocidade, audiência, ações, contatos e horários, fonte e limitação por seção, botão de impressão e links de CSV; impressão pelo navegador com tokens remapeados e quebra entre sites. O relatório compõe as funções das abas, sem SQL próprio.
+- **Notificações**: migração `0006_notificacoes.sql` (preferências da conta, preferência por site, outbox de entregas com unicidade por alerta, canal e destinatário), adaptador de e-mail no worker (Resend, Postmark, webhook genérico e modo de log), outbox com retentativas e backoff, seção Notificações em Configurações (destinatários, tipos, estado do provedor na aplicação e no worker, últimas entregas), painel por site em Disponibilidade.
+- **Contatos**: migração `0007_retencao_contatos.sql`, exclusão por anonimização na aba Contatos, política de retenção por site (manual ou N dias) aplicada pelo worker de hora em hora, grants por coluna para o worker não ler dado pessoal.
+- **Permissões**: matriz declarada de grants, RLS e funções em `tests/integration/permissoes.spec.ts`; e2e cruzado em `tests/e2e/permissoes.spec.ts` (todas as telas do site e exportações de outra conta → 404; sem sessão → 401). Defeito de grant da mesclagem de conflitos (Fase 4) encontrado e corrigido.
+- **Operação**: `npm run db:backup` e `npm run db:restaurar` com verificação estrutural e de contagens; `docs/BACKUP.md` (com restauração demonstrada), `docs/IMPLANTACAO.md`, `docs/INSTALACAO-NO-SITE.md`, `docs/CHECKLIST-PRE-PRODUCAO.md`.
+
+### Aceite da Fase 5
+- **Relatório e tela usam os mesmos cálculos**: `tests/integration/relatorio.spec.ts` compara `relatorioDoSite` campo a campo com as funções das abas para o mesmo período (R01), inclusive fronteira de fuso e exclusão de diagnóstico.
+- **Alerta não se repete indevidamente**: `tests/integration/outbox.spec.ts` (um alerta → uma entrega por destinatário após dez rodadas; retentativa só para transitórios; 4xx definitivo; preferência por site; corte temporal).
+- **Restauração de backup demonstrada**: executada no ambiente local e registrada em `docs/BACKUP.md`; `tests/integration/backup.spec.ts` repete o ciclo contra o banco de teste.
+- **Build e testes passam**: ver o resumo final desta fase abaixo.
+- **Limitações documentadas**: no relatório (seção própria), em `docs/IMPLANTACAO.md` e em `docs/BACKUP.md`.
+
+### Depende de credencial ou ambiente
+- Envio real de e-mail (chave de Resend/Postmark ou URL de webhook) e `APP_URL` público para os links.
+- Medição real do PageSpeed (chave), piloto num site real, monitor externo da própria central, bloqueio de egress do worker, agendamento do backup e envio para armazenamento externo.
+
+### Não feito nesta fase
+- Recuperação de senha e troca de e-mail por confirmação (exigem provedor; o adaptador agora existe, falta o fluxo).
+- Alerta automático de regressão de PageSpeed confirmada; fração de checagens bem-sucedidas num período exato do passado (o relatório declara a janela a partir de agora).
+- Portal de cliente leitor; importação de dados da V1.
+
 ## Fase 4 — Eventos, botões e contatos (20/10/2026)
 
 ### Implementado e verificado localmente
@@ -88,6 +113,5 @@
 Veja `docs/OPERACAO.md`. Resumo: `cp .env.example .env.local` → preencher → `npm run db:setup` → `npm run db:bootstrap` → `npm run dev` e, em outro terminal, `npm run worker`.
 
 ### Pendente (por fase)
-- **Fase 5**: relatório imprimível, CSV, adaptador de e-mail, preferências de alerta, backups/restauração, validação visual final. R01, X01.
 - **Depende de credencial/ambiente**: chave PageSpeed, provedor de e-mail, hospedagem com processo contínuo para o worker, monitor externo independente da própria central.
 - **Não feito nesta fase**: recuperação de senha por e-mail; convite de outros usuários pela interface; importação de dados da V1.

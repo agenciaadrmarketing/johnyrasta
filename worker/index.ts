@@ -25,6 +25,7 @@ import { rodada, retencao, alertaDeColetaParada } from './rodada';
 import { agendarDiarios, alertaDeFilaParada, rodadaPageSpeed } from './pagespeed';
 import { criarEnviador } from './email';
 import { estadoDoOutbox, rodadaOutbox } from './outbox';
+import { aplicarRetencao } from '@/modules/contacts/retencao';
 import { lerConfigDeEmail } from '@/modules/notifications/provedor';
 
 loadEnv();
@@ -142,6 +143,9 @@ async function loop() {
       try {
         const n = await retencao(pool);
         if (n.checks || n.events || n.runs) console.log(`[worker] retenção: ${n.checks} checagens, ${n.events} eventos, ${n.runs} medições apagados`);
+        // Retenção de contatos por site (política 'dias'): anonimiza, nunca apaga a linha.
+        const ret = await aplicarRetencao(pool);
+        if (ret.anonimizados || ret.erros) console.log(`[worker] retenção de contatos: ${ret.anonimizados} anonimizados, ${ret.erros} erros (${ret.candidatos} candidatos)`);
         const parados = await alertaDeColetaParada(pool);
         if (parados) console.log(`[worker] coleta interrompida em ${parados} site(s)`);
         ultimaRetencao = Date.now();

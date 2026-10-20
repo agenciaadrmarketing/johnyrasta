@@ -1889,6 +1889,12 @@ svg:has(.funil-etapa:hover) .funil-etapa:not(:hover) text {
   .relatorio-site [style*='overflow'] {
     overflow: visible !important;
   }
+  /* Um cartão que quebra entre páginas é CORTADO pelo overflow: hidden que
+     contém a costura na tela (Chrome recorta o fragmento). Na impressão a
+     costura já está escondida, então o overflow pode ser visível. */
+  .cartao {
+    overflow: visible !important;
+  }
   .relatorio-site [data-testid='estado-vazio'] {
     padding: var(--esp-3) !important;
   }

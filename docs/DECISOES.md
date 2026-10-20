@@ -132,3 +132,111 @@ Média ≥ 20 eventos/dia nos 7 dias anteriores e zero nas últimas 24 h → um 
 
 ### D39. Retenção
 Eventos detalhados 90 dias, medições 12 meses, checagens 30 dias (worker, de hora em hora). Submissões e contatos ficam até o operador excluir (exclusão e política explícita ficam para a Fase 5).
+
+## 2026-10-20 — Fase 5
+
+A Fase 5 foi construída em quatro frentes paralelas (relatórios, notificações, contatos e permissões, operação), mescladas e depois submetidas a revisão adversarial. As decisões abaixo consolidam o que cada frente registrou; a numeração segue a sequência do documento.
+
+### Notificações por e-mail
+
+### D40. Entrega é outbox separado do alerta
+`alert_deliveries` com `UNIQUE (alert_id, channel, recipient)` é o contrato de não reenvio: a dedupe do alerta (Fase 2) garante uma condição = um alerta; a unicidade da entrega garante um alerta = uma entrega por caixa de entrada, mesmo com dez rodadas ou dois workers. Abertura e recuperação são alertas distintos e, por isso, duas entregas.
+
+### D41. Corte temporal pelas preferências
+Só alertas criados DEPOIS da última gravação das preferências (`notification_settings.updated_at`) e ainda no estado `aberto` são enfileirados. Ligar o e-mail ou trocar destinatários nunca despeja histórico antigo; o que já foi resolvido não vira e-mail. Consequência registrada: `verificacao_atrasada`, que o worker grava já resolvido (D20), não sai por e-mail; continua na lista por completude.
+
+### D42. Sem provedor, nada é enfileirado
+Não é só "não enviado": sem `EMAIL_PROVIDER` o outbox não cria entregas, então configurar o provedor depois não dispara uma fila acumulada. A preferência pode ser salva antes e a tela diz literalmente que nada será enviado até configurar o provedor.
+
+### D43. Dois processos, dois ambientes, os dois na tela
+Configurações mostra o que a aplicação lê de `EMAIL_PROVIDER` e o que o worker informou no heartbeat (provedor, pendentes, falhas em 24 h), com aviso quando divergem. Quem envia é o worker.
+
+### D44. Adaptador só devolve sucesso com 2xx do provedor
+429, 408, 5xx, timeout (15 s) e erro de rede são transitórios, com backoff 1·2·4·8·16 min (jitter de ±25%) até 5 tentativas, depois `falhou` definitivo; outros 4xx falham na hora. O modo `log` marca como enviado sem entregar nada e o worker avisa disso ao iniciar: é só para desenvolvimento.
+
+### D45. Reivindicação de entregas com lease implícito
+`FOR UPDATE SKIP LOCKED` e reserva de 10 min em `next_attempt_at`, sem estado "processando": se o worker morrer no meio do envio, a entrega volta à fila sozinha. Se a preferência da conta mudar entre enfileirar e enviar, a entrega vira `descartado` em vez de sair.
+
+### D46. Entrega referencia alerta por chave composta
+`alert_deliveries (alert_id, account_id)` → `alerts (id, account_id)`; `alerts` ganhou a unicidade correspondente. Mesma regra de `sites` → `clients` (D06): uma entrega nunca aponta para alerta de outra conta, mesmo que o código erre.
+
+### D47. Preferência por site: sem linha = ligado
+A linha só existe para registrar a decisão de desligar ou religar. Alertas sem site (fila parada) seguem só a conta. A gravação usa `insert … select from sites`, para que um id de outra conta vire "nenhuma linha" em vez de erro de chave estrangeira.
+
+### D48. Link da mensagem por tipo
+Alertas de monitoramento → `/sites/<id>/disponibilidade`; `coletor_parado` → `/sites/<id>/instalacao`; sem site → `/atencao`. Sem `APP_URL` a mensagem leva só o caminho e diz que falta a variável, em vez de inventar um domínio.
+
+### D49. Rótulos de categoria de falha duplicados de propósito
+Os rótulos usados no corpo do e-mail moram em `notifications/mensagem.ts` (módulo puro) porque `monitoring/consultas.ts` é `server-only` e o worker não pode importá-lo. Se a lista mudar lá, muda aqui.
+
+### Relatórios
+
+### D50. Período padrão é janela móvel; período personalizado é dia de calendário no fuso do site
+`?dias=7|30|90` termina em "agora", exatamente como `periodoDeDias` da aba Botões e horários e do CSV de eventos: é o único jeito de relatório, aba e CSV mostrarem os mesmos números. `?de/?ate` usa dias de calendário no fuso IANA do site (00:00 a 23:59:59.999 convertidos para UTC), no máximo 366 dias; fim no futuro é cortado em agora e o rótulo diz.
+
+### D51. O relatório não tem SQL próprio
+`relatorioDoSite` compõe as funções de consulta das abas; o teste R01 (`tests/integration/relatorio.spec.ts`) compara campo a campo com essas funções chamadas diretamente para o mesmo período. Recortes feitos em código puro (`reports/regras.ts`): incidentes que tocam o período, horas mais ativas, agrupamento por evidência, remoção da mensagem livre.
+
+### D52. Relatório do cliente
+Resolve o período no fuso do primeiro site ativo; se os sites do cliente usam fusos distintos, a tela avisa em vez de fingir que são iguais. Sites arquivados ficam fora do relatório do cliente e podem ser abertos pelo relatório do site, com aviso de arquivado.
+
+### D53. CSV a partir do relatório
+Eventos só com período padrão (a rota aceita 7/30/90; um arquivo com números diferentes da tela seria pior que nenhum). Contatos sempre, rotulado como "todos os contatos do site, sem recorte de período", porque essa rota não tem período.
+
+### D54. Impressão remapeia para o tema claro
+Dentro de `@media print`, tokens de texto, borda, estado e paleta de dados recebem os valores do tema claro (a legenda do escuro sobre papel ficava em cerca de 2,9:1). Cartões podem quebrar entre páginas, nunca no meio de uma linha; `thead` repetido; quebra de página entre sites. A seção de disponibilidade usa `resumoDeChecagens` contada a partir de agora (assinatura existente) e declara isso em texto; a fração no período exato fica para uma consulta futura.
+
+### Contatos: exclusão, retenção e permissões
+
+### D55. Excluir contato é anonimizar, nunca apagar a linha
+Identidades removidas, nome nulo, `fields = {}` nos envios do contato; `occurred_at`, `page_path`, `attribution`, `attributed_event_id` e `is_new_lead` ficam, então nenhuma contagem ou horário do relatório muda. Conflitos abertos que envolvem o contato fecham como `contato_excluido`. Idempotente; id de outra conta devolve "não encontrado", nunca 403.
+
+### D56. Depois da exclusão, o identificador recomeça
+Novo envio com o mesmo e-mail ou telefone cria contato novo com `is_new_lead = true`. Lembrar o identificador para dizer "é a mesma pessoa" exigiria guardar o próprio dado que acabou de ser apagado.
+
+### D57. O worker anonimiza sem conseguir ler dado pessoal
+Grants por coluna: `select` em `contacts` sem `name`, em `contact_identities` sem `value`; `update` só nas colunas da anonimização. Observação registrada: desde a 0005 o worker já tinha `select` em `submissions` (com `fields`) para o alerta de coleta; não foi alterado nesta fase.
+
+### D58. A central só atualiza colunas específicas de envios e identidades
+`update` por coluna em `submissions (contact_id, fields)` e `contact_identities (contact_id)`, mais `delete` em identidades. `receipt_status` continua fora do alcance da central no banco: "destino confirmado" só nasce do webhook (reforça D33). Defeito encontrado e corrigido no nível do grant: a mesclagem de conflitos da Fase 4 fazia `update` sem ter o grant e falhava.
+
+### D59. Política de retenção por site, decidida pelo proprietário
+`manual` (padrão; nada expira) ou `dias` (30 a 3650, contados do último contato real). O banco recusa `dias` sem prazo. A varredura roda no worker de hora em hora, junto da retenção de eventos, uma transação por contato, idempotente; sites arquivados continuam sob a política. A tela diz que depende do worker em execução.
+
+### D60. Toda tabela do schema `public` tem RLS forçada
+`worker_heartbeats` passou a ter RLS ativa e forçada com políticas permissivas, para a invariante ser verdadeira e testada sem exceções além de `schema_migrations`.
+
+### D61. A auditoria de permissões é uma matriz declarada no teste
+`tests/integration/permissoes.spec.ts` declara tabela × papel × privilégio, colunas, sequências, schemas, funções `SECURITY DEFINER`, RLS e política para todo grant. Qualquer grant novo não declarado reprova; a frente que o introduzir precisa escrevê-lo no teste.
+
+### D62. Confirmação de exclusão sem JavaScript
+"Excluir" abre um `<details>` com a explicação e o botão final "Excluir (anonimiza)". Retorno por querystring (`?aviso=`) com valores de uma lista fechada; validação sempre no servidor.
+
+### D63. Limite documentado da anonimização
+Envios de outro contato que, num conflito, carreguem o mesmo telefone ou e-mail não são tocados (são dados do outro contato até o operador decidir). Envios de diagnóstico (sem contato) também não; a central nunca os lista.
+
+### Operação
+
+### D64. Backup lógico, ponto no tempo
+`pg_dump -Fc`, um arquivo por execução, carimbo UTC no nome, sufixo em vez de sobrescrita. PITR fica a cargo do provedor gerenciado como camada adicional, não substituta.
+
+### D65. A restauração nunca vai para o banco de origem
+O script recusa `--para` igual ao database de `DATABASE_URL_ADMIN` e bancos de sistema; recusa banco alvo não vazio sem `--forcar`. Promover um banco restaurado é trocar as URLs da aplicação, nunca sobrescrever o banco em uso.
+
+### D66. Restaurar preserva políticas e grants
+`pg_restore --no-owner --exit-on-error --single-transaction`, sem `--no-privileges`: políticas RLS e concessões fazem parte do contrato. Papéis são objetos do cluster e não vêm no dump; os que faltarem são criados `NOLOGIN` e recebem senha por `db:setup`.
+
+### D67. Verificação distingue estrutura de contagem
+Divergência estrutural (tabelas, versões de migração, políticas por nome, comando, papéis e expressão, RLS forçada, concessões, funções, índices, restrições) é falha com código de saída 1. Contagem diferente é aviso, porque a origem pode estar viva; o teste automático, em banco parado, exige as duas iguais.
+
+### D68. Política sugerida de backup
+Diário e antes de cada migração; retenção de 30 dias; armazenamento externo cifrado e de acesso restrito (o dump contém dados pessoais e hashes de senha); teste de restauração mensal registrado em `docs/BACKUP.md`. A primeira restauração real foi demonstrada em 20/10/2026 no ambiente local e está documentada lá.
+
+### D69. Senha nunca em argumento de linha de comando
+Vai por `PGPASSWORD`; `sslmode` da URL vira `PGSSLMODE`; `PG_BIN` aponta os binários quando não estão no PATH.
+
+### D70. Limites de rede registrados
+O `fetch` do Node usado pelo worker não lê `HTTP(S)_PROXY`: ambiente com proxy obrigatório precisa de liberação direta para a API do PageSpeed e para o provedor de e-mail. HSTS com `includeSubDomains` exige publicar a central num domínio cujos subdomínios tenham HTTPS, ou num subdomínio dedicado.
+
+### D71. Guia de instalação copia os trechos da aba
+`docs/INSTALACAO-NO-SITE.md` reproduz os trechos exatos da aba Instalação e de `public/c.v1.js`, sem inventar atributos; documenta `window.jw('consent', false)` como retirada de consentimento, comportamento que já existia no coletor.

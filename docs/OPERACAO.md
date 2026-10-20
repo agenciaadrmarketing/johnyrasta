@@ -26,6 +26,7 @@ Sem `BOOTSTRAP_*` no ambiente, o bootstrap pergunta no terminal. Ele se recusa a
 | `npm run build && npm start` | pacote de produção (CSP bloqueante com nonce) |
 | `npm run worker` | processo do worker (`DATABASE_URL_WORKER`) |
 | `npm run db:migrate` | aplica migrações pendentes (`DATABASE_URL_ADMIN`) |
+| `npm run db:backup` · `npm run db:restaurar -- --para <banco>` | backup lógico e restauração verificada; veja `docs/BACKUP.md` |
 | `npm run typecheck` · `npm run lint` · `npm run design` | TypeScript, ESLint (inclui regras do compilador React), verificador do design system |
 | `npm run test:unit` | regras puras |
 | `npm run test:integration` | PostgreSQL real: recria `johnyweb_test` com as migrações e testa RLS/invariantes |
@@ -62,13 +63,24 @@ MONITOR_EXCECOES_DE_REDE=127.0.0.1 npm run worker
 ```
 Cadastre `http://piloto.exemplo.test/` como site com monitor, alterne o servidor para 500 e observe em Disponibilidade: suspeita → confirmado em duas checagens → recuperado ao voltar para 200. Em Atenção aparece um alerta de abertura e, depois, um de recuperação.
 
-## Implantação (proposta; não executada)
+## Notificações por e-mail (Fase 5)
+- Preferências em Configurações → Notificações (destinatários e tipos) e por site em Disponibilidade. Sem `EMAIL_PROVIDER` no ambiente do worker nada é enviado e a tela diz isso; os alertas continuam em Atenção.
+- Provedores: `resend`, `postmark`, `webhook` (qualquer destino HTTP) e `log` (só desenvolvimento). Variáveis em `.env.example`. O worker precisa de saída direta para a API do provedor (o `fetch` do Node não usa proxy).
+- Entregas e falhas aparecem em Configurações; o outbox nunca reenvia o mesmo alerta para o mesmo destinatário.
+
+## Relatórios (Fase 5)
+- `/relatorios`: por site ou por cliente, período 7/30/90 (mesma janela das abas e do CSV) ou personalizado no fuso do site. Impressão pelo navegador (Ctrl+P ou botão Imprimir); PDF automático no servidor não faz parte desta versão.
+
+## Implantação
+Procedimento completo, variáveis por serviço, dimensionamento, rollback e limites conhecidos: `docs/IMPLANTACAO.md`. Lista verificável antes de ativar: `docs/CHECKLIST-PRE-PRODUCAO.md`. Backup e restauração: `docs/BACKUP.md`. Instalação do coletor e formulários num site de cliente: `docs/INSTALACAO-NO-SITE.md`.
+
+Resumo:
 1. Banco gerenciado: rode `npm run db:setup` a partir de uma máquina com acesso administrativo (ou aplique `migrations/` com o papel administrador e crie os papéis à mão com as senhas das URLs).
 2. Web: `npm run build` + `npm start` (ou plataforma Next). Variáveis: `DATABASE_URL`, `SESSION_SECRET`, `APP_URL`.
 3. Worker: serviço separado com `npm run worker` supervisionado (restart automático). Variável: `DATABASE_URL_WORKER`, `WORKER_ID`.
 4. Monitor externo da própria central (UptimeRobot, Better Stack ou similar): se web e worker caírem juntos, eles não alertam sobre si mesmos.
 5. Backup do banco com restauração testada antes de ativar para a carteira.
-6. Rollback: migrações são aditivas; voltar a versão anterior da aplicação não exige reverter o banco.
+6. Rollback: migrações são aditivas; voltar a versão anterior da aplicação não exige reverter o banco. Restaurar backup só em caso de corrupção ou perda, sempre num banco novo (`docs/BACKUP.md`).
 
 ## Rollback da Fase 1
 Não há ambiente antigo tocado. Para desfazer uma instalação local: `npm run db:setup -- --drop` (proibido com `NODE_ENV=production`).
