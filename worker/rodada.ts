@@ -155,8 +155,35 @@ export async function gravar(pool: Pool, m: MonitorReivindicado, r: ResultadoDaC
   }
 }
 
-/** Retenção: checagens detalhadas por 30 dias. Incidentes e alertas ficam. */
-export async function retencao(pool: Pool, dias = 30): Promise<number> {
-  const r = await pool.query(`delete from checks where checked_at < now() - make_interval(days => $1)`, [dias]);
+/** Retenção: checagens 30 dias, eventos detalhados 90 dias, medições 12 meses. Incidentes, alertas, submissões e contatos ficam. */
+export async function retencao(pool: Pool): Promise<{ checks: number; events: number; runs: number }> {
+  const c = await pool.query(`delete from checks where checked_at < now() - interval '30 days'`);
+  const e = await pool.query(`delete from events where occurred_at < now() - interval '90 days'`);
+  const r = await pool.query(`delete from performance_runs where measured_at < now() - interval '12 months'`);
+  return { checks: c.rowCount ?? 0, events: e.rowCount ?? 0, runs: r.rowCount ?? 0 };
+}
+
+/**
+ * Coleta interrompida: site com volume regular (média ≥ 20 eventos/dia nos 7
+ * dias anteriores) e zero eventos nas últimas 24 h. Suspeita, não prova; um
+ * alerta por site por dia. Sites de baixo tráfego nunca alertam por isto.
+ */
+export async function alertaDeColetaParada(pool: Pool, agora: Date = new Date()): Promise<number> {
+  const r = await pool.query<{ account_id: string; site_id: string; name: string; media: number }>(
+    `with v as (
+       select e.site_id, count(*) filter (where e.occurred_at >= $1::timestamptz - interval '8 days' and e.occurred_at < $1::timestamptz - interval '1 day')::float / 7 as media,
+              count(*) filter (where e.occurred_at >= $1::timestamptz - interval '1 day')::int as ultimas24
+         from events e where not e.is_test and e.occurred_at >= $1::timestamptz - interval '8 days' group by e.site_id
+     )
+     select s.account_id, s.id as site_id, s.name, v.media from v join sites s on s.id = v.site_id
+      where v.media >= 20 and v.ultimas24 = 0 and s.archived_at is null`,
+    [agora],
+  );
+  for (const x of r.rows) {
+    await pool.query(
+      `insert into alerts (account_id, site_id, kind, severity, dedupe_key, title, details) values ($1, $2, 'coletor_parado', 'media', $3, $4, $5) on conflict (account_id, dedupe_key) do nothing`,
+      [x.account_id, x.site_id, `coletor:${x.site_id}:${agora.toISOString().slice(0, 10)}`, `${x.name}: nenhum evento nas últimas 24 h (média de ${Math.round(x.media)}/dia)`, JSON.stringify({ mediaDiaria: x.media })],
+    );
+  }
   return r.rowCount ?? 0;
 }

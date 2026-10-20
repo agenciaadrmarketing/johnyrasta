@@ -100,3 +100,35 @@ As oportunidades aparecem individualmente, ordenadas; a tela avisa que se sobrep
 
 ### D29. Capacidade
 Agenda diária por URL × dispositivo. Concorrência padrão 2 no worker (`PAGESPEED_CONCORRENCIA`). Para 100 sites × 3 URLs × 2 dispositivos (600/dia) a 45 s cada, concorrência 2 drena em ~3,75 h; a cota efetiva da chave é o limite real e só se conhece no console do Google. "Fila parada" (devidas há mais de 2 h sem nenhuma concluída) gera um alerta por dia.
+
+## 2026-10-20 — Fase 4
+
+### D30. Dois papéis públicos, dois endpoints, nenhum com acesso além do próprio trabalho
+`app_ingest` (eventos) lê sites e grava sessões e eventos; não enxerga contatos, usuários nem incidentes. `app_forms` (formulários) grava submissões, contatos e identidades e lê eventos da sessão para atribuição; não enxerga usuários. Testado por permissão negada.
+
+### D31. Deduplicação antes de qualquer efeito colateral
+`events (site_id, event_id)` é único; a ingestão consulta a chave antes de abrir ou estender sessão (E01). Sessões têm `(site_id, session_key)` único e `FOR UPDATE`; dois eventos simultâneos do mesmo visitante produzem uma sessão (E02). Evento atrasado depois da expiração não estende `last_seen_at` (E03).
+
+### D32. O coletor não lê formulários
+`c.v1.js` registra `page_view` (inclusive rotas SPA), `click` (por `data-track-id` ou detecção automática de WhatsApp, telefone e e-mail, marcada como tal) e `form_attempt` (só o gesto). Só três UTMs; path sem query/hash; referrer reduzido ao host. `data-consent="exigido"` segura o identificador persistente até `jw('consent')`. Versionado no nome do arquivo.
+
+### D33. Três modos de formulário, e só um prova entrega
+Endpoint da central → "contato recebido". Webhook assinado (HMAC do corpo com timestamp e nonce, janela de 5 min, replay recusado) → "destino confirmado", o único caminho para esse status. Cópia auxiliar → "recebido" ou "falha no destino" quando o site informa; nunca "confirmado" (F02). A origem da evidência aparece em cada envio.
+
+### D34. Idempotência de submissão e identidade com conflito explícito
+`(site_id, submission_id)` único: reenvio devolve o mesmo resultado (F01). E-mail e telefone são normalizados (país padrão do site). E-mail → A e telefone → B registram conflito, a submissão fica com A e nada é mesclado até o operador decidir (F03); a mesclagem é ação explícita e auditada.
+
+### D35. Diagnóstico fora de tudo
+Token de 1 h marca eventos e submissões como `is_test`: fora das contagens, sem contato, sem "primeiro contato real" (F04). A página pública `/teste/<publicId>` usa o coletor real.
+
+### D36. Atribuição ao último clique, com denominador honesto
+Último clique da mesma sessão até 30 min antes; senão "sem atribuição" (T03). A tabela de botões mostra cliques, sessões com clique, contatos atribuídos e sessões que clicaram E converteram — nunca "CTR", porque impressões não são medidas.
+
+### D37. Horários são contagens, no fuso do site, com aviso de amostra
+UTC no banco; `at time zone <fuso IANA>` na consulta (T01). Com menos de 30 ações no período a tela avisa que "melhor horário" não é conclusão confiável.
+
+### D38. Coleta interrompida só com volume regular
+Média ≥ 20 eventos/dia nos 7 dias anteriores e zero nas últimas 24 h → um alerta por dia. Sites de baixo tráfego nunca alertam por isso.
+
+### D39. Retenção
+Eventos detalhados 90 dias, medições 12 meses, checagens 30 dias (worker, de hora em hora). Submissões e contatos ficam até o operador excluir (exclusão e política explícita ficam para a Fase 5).

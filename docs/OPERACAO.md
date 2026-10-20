@@ -37,6 +37,13 @@ Sem `BOOTSTRAP_*` no ambiente, o bootstrap pergunta no terminal. Ele se recusa a
 - O worker agenda, uma vez por dia (UTC), uma medição por URL × dispositivo e drena com `PAGESPEED_CONCORRENCIA` (padrão 2). Em Configurações, "Fila parada" indica medições devidas há mais de 2 h sem nenhuma concluída: confira a cota da chave no console do Google e o log do worker.
 - "Medir agora" só enfileira (uma vez a cada 30 min por URL). Quem mede é o worker.
 
+## Coletor e formulários (Fase 4)
+- Defina `DATABASE_URL_INGEST` e `DATABASE_URL_FORMS` (papéis criados por `npm run db:setup`). Os endpoints públicos usam só esses papéis.
+- `APP_URL` precisa ser o domínio público da central: os snippets da aba Instalação apontam para ele.
+- O coletor é `/c.v1.js` (CORS aberto, cache de 5 min). Uma versão nova vai para `/c.v2.js`; a antiga continua servida até a carteira migrar.
+- Limites em memória por instância: 240 req/min por IP e 120 por site+IP na coleta; 30 por site+IP em formulários; corpo até 64 KB (coleta) e 32 KB (formulários).
+- Instalação piloto: um site, aba Instalação → teste com token → página `/teste/<publicId>` ou o próprio site com `?jw_test=<token>`. Só amplie para a carteira depois de ver visita, clique e formulário confirmados e um contato real chegando.
+
 ## Variáveis
 Documentadas em `.env.example`. Segredos só no gestor da hospedagem.
 

@@ -8,7 +8,7 @@
  */
 import type { Pool, PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
-import { atrasoDeRetentativa, chaveDoTrabalho, classificarErroDaApi, lerPageSpeed, possivelRegressao, urlDaApi, type Dispositivo } from '@/modules/performance/pagespeed';
+import { atrasoDeRetentativa, classificarErroDaApi, lerPageSpeed, possivelRegressao, urlDaApi, type Dispositivo } from '@/modules/performance/pagespeed';
 
 export const LEASE_PAGESPEED_SEGUNDOS = 180;
 

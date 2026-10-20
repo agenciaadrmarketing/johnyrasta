@@ -19,7 +19,7 @@
 import { Pool } from 'pg';
 import { hostname } from 'node:os';
 import { loadEnv } from '../scripts/env';
-import { rodada, retencao } from './rodada';
+import { rodada, retencao, alertaDeColetaParada } from './rodada';
 import { agendarDiarios, alertaDeFilaParada, rodadaPageSpeed } from './pagespeed';
 
 loadEnv();
@@ -31,7 +31,7 @@ if (!url) {
 }
 
 const WORKER_ID = process.env.WORKER_ID ?? `${hostname()}-${process.pid}`;
-const VERSAO = `v2-fase3`;
+const VERSAO = `v2-fase4`;
 const TICK_MS = 5_000;
 const HEARTBEAT_MS = 30_000;
 const RETENCAO_MS = 60 * 60 * 1000;
@@ -100,7 +100,7 @@ async function loop() {
     if (Date.now() - ultimoHeartbeat > HEARTBEAT_MS) {
       try {
         const fila = await estadoDaFila();
-        await heartbeat({ fase: 3, fila, acumulado, concorrencia: CONCORRENCIA, pagespeed: { configurado: !!CHAVE_PAGESPEED, acumulado: acumuladoPs } });
+        await heartbeat({ fase: 4, fila, acumulado, concorrencia: CONCORRENCIA, pagespeed: { configurado: !!CHAVE_PAGESPEED, acumulado: acumuladoPs } });
         ultimoHeartbeat = Date.now();
       } catch (e) {
         console.error('[worker] heartbeat falhou:', e instanceof Error ? e.message : e);
@@ -109,7 +109,9 @@ async function loop() {
     if (Date.now() - ultimaRetencao > RETENCAO_MS) {
       try {
         const n = await retencao(pool);
-        if (n) console.log(`[worker] retenção: ${n} checagens antigas apagadas`);
+        if (n.checks || n.events || n.runs) console.log(`[worker] retenção: ${n.checks} checagens, ${n.events} eventos, ${n.runs} medições apagados`);
+        const parados = await alertaDeColetaParada(pool);
+        if (parados) console.log(`[worker] coleta interrompida em ${parados} site(s)`);
         ultimaRetencao = Date.now();
       } catch (e) {
         console.error('[worker] retenção falhou:', e instanceof Error ? e.message : e);

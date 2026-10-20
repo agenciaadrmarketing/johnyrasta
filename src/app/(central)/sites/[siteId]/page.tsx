@@ -5,6 +5,7 @@ import { exigirSessao } from '@/modules/accounts/contexto';
 import { buscarSite, estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
 import { historicoDeAlertas, incidentesDoSite, ROTULO_ALERTA } from '@/modules/monitoring/consultas';
 import { ultimasMedicoes, urlsDoSite } from '@/modules/performance/consultas';
+import { periodoDeDias, resumoDeEventos, rastreamentoDoSite } from '@/modules/analytics/consultas';
 import { arquivarSite } from '@/modules/portfolio/acoes';
 import { Painel, Aviso } from '@/shared/ui/Painel';
 import { SeloEstado } from '@/shared/ui/SeloEstado';
@@ -29,6 +30,8 @@ export default async function PaginaResumo({ params }: { params: Promise<{ siteI
   const urls = await urlsDoSite(u.accountId, site.id);
   const medicoes = await ultimasMedicoes(u.accountId, site.id);
   const temChave = !!process.env.PAGESPEED_API_KEY;
+  const eventos = await resumoDeEventos(u.accountId, site.id, periodoDeDias(30));
+  const rastreio = await rastreamentoDoSite(u.accountId, site.id);
   const s = site.situacao;
   const semWorker = !worker || workerSemSinal(worker.seenAt);
   const plataforma = PLATAFORMAS.find((p) => p.valor === site.platform)?.texto ?? site.platform;
@@ -64,8 +67,22 @@ export default async function PaginaResumo({ params }: { params: Promise<{ siteI
                 : { estado: `Medido ${haQuantoTempo(medicoes[0]!.measuredAt)}`, tom: 'ok' as const, detalhe: `${medicoes.length} séries (URL × dispositivo) com medição.` }),
       href: `/sites/${site.id}/velocidade`,
     },
-    { nome: 'Visitas e botões', estado: 'Coletor não instalado', tom: 'soft', detalhe: 'O script de coleta e o teste de instalação chegam na Fase 4.', href: `/sites/${site.id}/instalacao` },
-    { nome: 'Contatos', estado: 'Sem recebimento', tom: 'soft', detalhe: 'Endpoint de formulário e integração confirmada chegam na Fase 4.', href: `/sites/${site.id}/contatos` },
+    {
+      nome: 'Visitas e botões',
+      ...(eventos.ultimoEvento
+        ? { estado: `Medindo · último evento ${haQuantoTempo(eventos.ultimoEvento)}`, tom: 'ok' as const, detalhe: `${eventos.visualizacoes} visualizações e ${eventos.cliques} cliques de intenção em 30 dias.` }
+        : { estado: 'Coletor sem eventos', tom: 'soft' as const, detalhe: 'Instale o script e faça o teste de instalação.' }),
+      href: eventos.ultimoEvento ? `/sites/${site.id}/botoes` : `/sites/${site.id}/instalacao`,
+    },
+    {
+      nome: 'Contatos',
+      ...(rastreio.formMode === 'desligado'
+        ? { estado: 'Recebimento desligado', tom: 'soft' as const, detalhe: 'Ative um modo de formulário na Instalação.' }
+        : eventos.contatos > 0
+          ? { estado: `${eventos.contatos} recebidos em 30 dias`, tom: 'ok' as const, detalhe: `${eventos.novosLeads} novos leads · modo ${rastreio.formMode}.` }
+          : { estado: 'Nenhum contato ainda', tom: 'soft' as const, detalhe: `Modo ${rastreio.formMode} configurado; nenhum envio recebido.` }),
+      href: `/sites/${site.id}/contatos`,
+    },
   ];
 
   return (

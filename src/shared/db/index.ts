@@ -121,6 +121,16 @@ export function semConta<T>(fn: (db: Queryable) => Promise<T>): Promise<T> {
   return transaction(poolFor('DATABASE_URL'), null, fn);
 }
 
+/** Endpoint público de eventos. Papel app_ingest: sessões e eventos, nada mais. */
+export function comIngestao<T>(fn: (db: Queryable) => Promise<T>): Promise<T> {
+  return transaction(poolFor('DATABASE_URL_INGEST'), null, fn);
+}
+
+/** Endpoint público de formulários. Papel app_forms: submissões e contatos. */
+export function comFormularios<T>(fn: (db: Queryable) => Promise<T>): Promise<T> {
+  return transaction(poolFor('DATABASE_URL_FORMS'), null, fn);
+}
+
 /** Verifica se o banco responde. Usado pela tela de Configurações, nunca em render crítico. */
 export async function verificarBanco(): Promise<{ ok: true; papel: string } | { ok: false; erro: string }> {
   try {

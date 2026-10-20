@@ -8,7 +8,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  * classes do tema — consequência da arquitetura visual, não descuido.
  * Em desenvolvimento não há CSP: `next dev` compila com `eval`.
  */
-const SEM_CSP = ['/api/'];
+const SEM_CSP = ['/api/', '/c.v1.js'];
 
 function nonceAleatorio(): string {
   const bytes = new Uint8Array(16);

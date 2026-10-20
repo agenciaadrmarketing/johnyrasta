@@ -10,7 +10,7 @@ let urlId: string;
 let relogio = new Date('2026-10-19T10:00:00Z');
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'utf8'));
 const respostas: Array<{ status: number; corpo: unknown }> = [];
-const fetchFalso = (async (_u: string | URL | Request) => {
+const fetchFalso = (async () => {
   const r = respostas.shift() ?? { status: 500, corpo: {} };
   return { ok: r.status >= 200 && r.status < 300, status: r.status, json: async () => r.corpo } as Response;
 }) as typeof fetch;

@@ -1,5 +1,28 @@
 # Progresso — JohnyWeb V2
 
+## Fase 4 — Eventos, botões e contatos (20/10/2026)
+
+### Implementado e verificado localmente
+- Migração `0005_eventos_e_contatos.sql`: configuração de coleta por site, sessões, eventos, contatos, identidades, submissões, conflitos, nonces de webhook, sessões de diagnóstico; papéis `app_ingest` e `app_forms`.
+- Coletor `public/c.v1.js` (ES5, versionado): visitas com rotas SPA, cliques por `data-track-id`/`data-track-pos`/`data-track-kind` e detecção automática, `form_attempt`, UTMs permitidas, consentimento opcional, modo de teste por token, envio por beacon/keepalive.
+- Endpoints públicos: `POST /api/collect` (lote, 204 após persistir, limites de bytes e requisições), `POST /api/forms/<publicId>` (endpoint ou `?mode=auxiliar`, JSON ou form-urlencoded, honeypot), `POST /api/forms/<publicId>/confirmar` (webhook assinado com replay protection).
+- Serviços: ingestão com dedupe antes de efeitos, sessões de 30 min, recepção com idempotência, reconciliação de identidades com conflito, atribuição ao último clique, diagnóstico isolado.
+- Central: aba Instalação (configuração, snippets HTML/React/WordPress, marcação de botões, três modos de formulário com instruções, segredo de webhook mostrado uma vez, teste com token e evidências), aba Contatos (lista, envios com origem da evidência, conflitos com decisão explícita, CSV), aba Botões e horários (barras por hora com alternativa textual, dias da semana, origens, tabela de botões com denominador compatível, aviso de amostra pequena, CSV), Resumo com estado real.
+- Worker: retenção (eventos 90 dias, medições 12 meses) e alerta de coleta interrompida.
+- Página pública `/teste/<publicId>` com o coletor real para prova de instalação.
+
+### Aceite da Fase 4
+- **Visita e clique reais em site de teste aparecem**: e2e `fase4.spec.ts` abre a página de teste com o coletor real, clica, envia o formulário e confere em Botões e Contatos.
+- **Submissão gera contato; reenvio não duplica**: integração F01 e e2e pela API pública.
+- **Falha do destino externo não vira sucesso confirmado**: integração F02 (modo auxiliar) e webhook (só assinatura válida confirma).
+- **Eventos de teste não mudam KPI**: integração F04 e e2e (diagnóstico primeiro, KPIs vazios; depois real).
+- E01–E04, F03, T01–T03 cobertos em unidade e integração.
+
+### Pendente
+- Instalação piloto num site real da carteira (depende de um site autorizado e do domínio público da central).
+- Alerta `coletor_parado` depende de 8 dias de histórico para disparar; não há como validar ao vivo hoje.
+- Exclusão e política de retenção de contatos (Fase 5).
+
 ## Fase 3 — PageSpeed (19/10/2026)
 
 ### Implementado e verificado localmente
@@ -65,7 +88,6 @@
 Veja `docs/OPERACAO.md`. Resumo: `cp .env.example .env.local` → preencher → `npm run db:setup` → `npm run db:bootstrap` → `npm run dev` e, em outro terminal, `npm run worker`.
 
 ### Pendente (por fase)
-- **Fase 4**: coletor versionado, instalação guiada, eventos de teste isolados, formulários (3 modos), contatos, horários, atribuição, exportação. E01–E04, F01–F04, T01–T03.
 - **Fase 5**: relatório imprimível, CSV, adaptador de e-mail, preferências de alerta, backups/restauração, validação visual final. R01, X01.
 - **Depende de credencial/ambiente**: chave PageSpeed, provedor de e-mail, hospedagem com processo contínuo para o worker, monitor externo independente da própria central.
 - **Não feito nesta fase**: recuperação de senha por e-mail; convite de outros usuários pela interface; importação de dados da V1.

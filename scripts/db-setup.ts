@@ -22,6 +22,8 @@ async function main() {
   const admin = process.env.DATABASE_URL_ADMIN;
   const web = process.env.DATABASE_URL;
   const worker = process.env.DATABASE_URL_WORKER;
+  const ingest = process.env.DATABASE_URL_INGEST;
+  const forms = process.env.DATABASE_URL_FORMS;
   if (!admin || !web) throw new Error('Defina DATABASE_URL_ADMIN e DATABASE_URL no .env.local.');
   const drop = process.argv.includes('--drop');
   if (drop && process.env.NODE_ENV === 'production') throw new Error('--drop é proibido com NODE_ENV=production.');
@@ -42,7 +44,7 @@ async function main() {
       await c.query(`create database "${alvo.database}"`);
       console.log(`· banco ${alvo.database} criado`);
     }
-    for (const url of [web, worker]) {
+    for (const url of [web, worker, ingest, forms]) {
       if (!url) continue;
       const p = partes(url);
       const r = await c.query('select 1 from pg_roles where rolname = $1', [p.user]);
