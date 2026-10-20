@@ -1,0 +1,17 @@
+{
+  "clients": [
+    { "id": "c-megaads", "name": "Mega Ads" },
+    { "id": "c-juscia", "name": "Juscia" },
+    { "id": "c-vieira", "name": "Vieira e Marques Advogados" }
+  ],
+  "sites": [
+    { "id": "s-megaads", "client_id": "c-megaads", "name": "Mega Ads", "domain": "megaads.com.br", "timezone": "America/Sao_Paulo" },
+    { "id": "s-juscia", "client_id": "c-juscia", "name": "Juscia", "domain": "juscia.com.br", "timezone": "America/Sao_Paulo" },
+    { "id": "s-vieira", "client_id": "c-vieira", "name": "Vieira e Marques Advogados", "domain": "vieiraemarquesadvogados.com", "timezone": "America/Sao_Paulo" }
+  ],
+  "monitored_urls": [
+    { "site_id": "s-megaads", "url": "https://megaads.com.br/", "prioritaria": true },
+    { "site_id": "s-juscia", "url": "https://juscia.com.br/", "prioritaria": true },
+    { "site_id": "s-vieira", "url": "https://vieiraemarquesadvogados.com/", "prioritaria": true }
+  ]
+}
