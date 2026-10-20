@@ -3,6 +3,7 @@ import { cookies, headers } from 'next/headers';
 import { createHash, randomBytes } from 'node:crypto';
 import { cache } from 'react';
 import { semConta } from '@/shared/db';
+import { cookieSeguro } from '@/shared/ambiente';
 
 /**
  * Sessão opaca, guardada no banco.
@@ -47,7 +48,7 @@ export async function criarSessao(userId: string): Promise<void> {
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSeguro(),
     path: '/',
     maxAge: DURACAO_SEGUNDOS,
   });

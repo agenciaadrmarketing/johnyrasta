@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { comConta, type Queryable } from '@/shared/db';
 import { situacaoDoSite, type Situacao } from '@/modules/portfolio/situacao';
 
@@ -160,13 +161,17 @@ export async function contagensDeFiltros(accountId: string, userId: string): Pro
   };
 }
 
-export async function buscarSite(accountId: string, userId: string, siteId: string): Promise<SiteComSituacao | null> {
+/**
+ * `cache`: uma vez por requisição. O layout do site, a página e o relatório pedem o mesmo site;
+ * medido em 20/10/2026, a consulta (5–9 ms) rodava cinco vezes numa só abertura do Resumo.
+ */
+export const buscarSite = cache(async (accountId: string, userId: string, siteId: string): Promise<SiteComSituacao | null> => {
   if (!/^[0-9a-f-]{36}$/i.test(siteId)) return null;
   return comConta(accountId, async (db) => {
     const linha = await db.one<Site>(`${SELECT_SITE} where s.id = $2`, [userId, siteId]);
     return linha ? comSituacao(hidratar(linha)) : null;
   });
-}
+});
 
 export async function listarClientes(accountId: string, incluirArquivados = false): Promise<Cliente[]> {
   return comConta(accountId, (db) =>
@@ -193,7 +198,7 @@ export async function buscarCliente(accountId: string, clienteId: string): Promi
   );
 }
 
-export async function contagensDoMenu(accountId: string): Promise<{ sites: number; clientes: number; atencao: number }> {
+export const contagensDoMenu = cache(async (accountId: string): Promise<{ sites: number; clientes: number; atencao: number }> => {
   return comConta(accountId, async (db) => {
     const r = await db.one<{ sites: number; clientes: number }>(
       `select (select count(*)::int from sites where archived_at is null) as sites,
@@ -201,16 +206,16 @@ export async function contagensDoMenu(accountId: string): Promise<{ sites: numbe
     );
     return { sites: r?.sites ?? 0, clientes: r?.clientes ?? 0, atencao: 0 };
   });
-}
+});
 
 /** Heartbeat do worker, para a tela de Configurações. `null` = nunca visto. */
-export async function estadoDoWorker(accountId: string): Promise<null | { workerId: string; seenAt: Date; version: string | null }> {
+export const estadoDoWorker = cache(async (accountId: string): Promise<null | { workerId: string; seenAt: Date; version: string | null }> => {
   return comConta(accountId, (db) =>
     db.one<{ workerId: string; seenAt: Date; version: string | null }>(
       `select worker_id as "workerId", seen_at as "seenAt", version from worker_heartbeats order by seen_at desc limit 1`,
     ),
   );
-}
+});
 
 /** O worker se apresenta a cada 30 s; cinco minutos sem sinal é ausência, não atraso de rede. */
 export function workerSemSinal(seenAt: Date, agora: Date = new Date()): boolean {

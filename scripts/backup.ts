@@ -19,6 +19,7 @@ import { mkdir, stat } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { Client } from 'pg';
 import { configDoPg } from '../src/shared/db/tls';
+import { adminEnxergaLinhas, adminIgnoraRls } from './rls-admin';
 import { loadEnv } from './env';
 
 /** Papéis da aplicação. São objetos do CLUSTER, não do banco: um dump não os cria. */
@@ -156,8 +157,19 @@ export async function fazerBackup(o: OpcoesDeBackup): Promise<ResultadoDoBackup>
   let caminho = `${base}.dump`;
   for (let n = 2; existsSync(caminho); n += 1) caminho = `${base}-${n}.dump`;
 
+  // Administrador sem BYPASSRLS: sem política explícita o pg_dump falha (ou, pior, sairia com tabelas vazias).
+  // Recuse antes; com as políticas admin_* (scripts/rls-admin.ts) o dump precisa de --enable-row-security.
+  const adm = new Client(configDoPg(o.url));
+  await adm.connect();
+  let extra: string[] = [];
+  try {
+    if (!(await adminEnxergaLinhas(adm))) throw new Error('O administrador não ignora a RLS e não há políticas admin_*: o backup sairia vazio ou falharia. Rode `npm run db:migrate` (ele cria as políticas) e tente de novo.');
+    if (!(await adminIgnoraRls(adm)).ignora) extra = ['--enable-row-security'];
+  } finally {
+    await adm.end();
+  }
   const { args, env } = conexaoParaFerramentas(o.url);
-  const r = await executarPg('pg_dump', ['--format=custom', '--no-password', '--file', caminho, ...args, '--dbname', banco], env);
+  const r = await executarPg('pg_dump', ['--format=custom', '--no-password', ...extra, '--file', caminho, ...args, '--dbname', banco], env);
   if (r.codigo !== 0) throw new Error(`pg_dump falhou (código ${r.codigo}):\n${r.stderr.trim()}`);
   const { size } = await stat(caminho);
   const resultado: ResultadoDoBackup = { caminho, bytes: size, banco, duracaoMs: Date.now() - inicio, versaoPgDump, versaoServidor };

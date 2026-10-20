@@ -13,6 +13,7 @@ import { Client } from 'pg';
 import { lookup } from 'node:dns/promises';
 import { loadEnv } from './env';
 import { configDoPg } from '../src/shared/db/tls';
+import { adminEnxergaLinhas } from './rls-admin';
 
 export type Achado = { nivel: 'ok' | 'aviso' | 'bloqueio'; texto: string };
 
@@ -77,9 +78,12 @@ async function preflight(url: string, admin = true): Promise<Achado[]> {
       return achados;
     }
     achados.push({ nivel: eu.cr || eu.su ? 'ok' : 'bloqueio', texto: `Usuário administrativo "${eu.u}" no banco "${eu.db}": superusuário=${eu.su}, CREATEROLE=${eu.cr}, CREATEDB=${eu.cd}. db:setup precisa criar papéis (CREATEROLE).` });
-    // As tabelas têm RLS FORÇADA, que vale até para o dono. Sem BYPASSRLS o administrador não consegue
-    // gravar (bootstrap, importação, demo) nem restaurar backup com pg_restore.
-    achados.push({ nivel: eu.br || eu.su ? 'ok' : 'bloqueio', texto: `BYPASSRLS do administrador: ${eu.br || eu.su ? 'sim' : 'NÃO — bootstrap, importação e restauração falham com "violates row-level security policy". Use um administrador com BYPASSRLS.'}` });
+    // As tabelas têm RLS FORÇADA, que vale até para o dono. Sem BYPASSRLS, as funções de login (SECURITY DEFINER),
+    // o bootstrap, a importação e o backup só funcionam com as políticas admin_* (scripts/rls-admin.ts), que
+    // `npm run db:migrate` cria. Este preflight NÃO cria nada.
+    if (eu.br || eu.su) achados.push({ nivel: 'ok', texto: 'BYPASSRLS do administrador: sim (nada a adaptar).' });
+    else if (await adminEnxergaLinhas(c)) achados.push({ nivel: 'ok', texto: 'Administrador sem BYPASSRLS, mas as políticas admin_* já existem (adaptação de menor privilégio aplicada).' });
+    else achados.push({ nivel: 'aviso', texto: 'Administrador SEM BYPASSRLS e sem políticas admin_*: o login (funções SECURITY DEFINER), bootstrap, importação e backup falhariam. `npm run db:migrate` cria as políticas admin_* para este papel (nada é desligado; ver docs/DESENVOLVIMENTO-LOCAL.md §Supabase). Não foi alterado nada.' });
     try {
       const s = await c.query<{ ssl: boolean }>('select ssl from pg_stat_ssl where pid = pg_backend_pid()');
       achados.push({ nivel: s.rows[0]?.ssl ? 'ok' : 'aviso', texto: s.rows[0]?.ssl ? 'Conexão com TLS.' : 'A conexão NÃO usa TLS (ou o banco não informa).' });

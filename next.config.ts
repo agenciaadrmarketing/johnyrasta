@@ -6,6 +6,8 @@ const config: NextConfig = {
   // Não anuncia o framework em cada resposta. Não fecha porta nenhuma, mas
   // também não entrega de graça a informação que orienta a primeira tentativa.
   poweredByHeader: false,
+  // Só para `next dev` acessado pelo celular na rede local: origens (IPs) liberadas para os recursos de desenvolvimento.
+  allowedDevOrigins: (process.env.DEV_ORIGENS_PERMITIDAS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   // Chuva Matrix e tabelas densas: o modo estrito não muda nada em produção,
   // mas dobra efeitos em desenvolvimento e já pegou um temporizador duplicado.
   reactStrictMode: true,

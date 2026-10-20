@@ -15,3 +15,5 @@ test-results/
 
 # Backups locais do banco (npm run db:backup)
 backups/
+.env.supabase
+supabase-ca.crt

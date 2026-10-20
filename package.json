@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "worker": "tsx worker/index.ts",
+    "lan": "tsx scripts/lan.ts",
+    "lan:dev": "tsx scripts/lan.ts --dev",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "design": "node tools/conferir-design.mjs",

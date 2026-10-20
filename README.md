@@ -7,7 +7,7 @@ Central de acompanhamento dos sites que o webdesigner entrega: quais estão onli
 - Especificação (contrato do produto): `JohnyWeb_V2_Engenharia_e_Prompt.md` (anexo da conversa de origem).
 - Matriz requisito → decisão → teste: [`docs/MATRIZ.md`](docs/MATRIZ.md)
 - Decisões: [`docs/DECISOES.md`](docs/DECISOES.md) · Progresso: [`docs/PROGRESSO.md`](docs/PROGRESSO.md) · Operação: [`docs/OPERACAO.md`](docs/OPERACAO.md)
-- Implantação: [`docs/IMPLANTACAO.md`](docs/IMPLANTACAO.md) · Checklist pré-produção: [`docs/CHECKLIST-PRE-PRODUCAO.md`](docs/CHECKLIST-PRE-PRODUCAO.md) · Backup: [`docs/BACKUP.md`](docs/BACKUP.md) · Instalação no site do cliente: [`docs/INSTALACAO-NO-SITE.md`](docs/INSTALACAO-NO-SITE.md) · Importar a V1: [`docs/IMPORTAR-V1.md`](docs/IMPORTAR-V1.md) · Validação no piloto (pendente): [`docs/VALIDACAO-PILOTO.md`](docs/VALIDACAO-PILOTO.md) · Testes: [`docs/TESTES.md`](docs/TESTES.md) · Roteiro do piloto: [`docs/ROTEIRO-PILOTO.md`](docs/ROTEIRO-PILOTO.md) · Compatibilidade: [`docs/COMPATIBILIDADE.md`](docs/COMPATIBILIDADE.md) · VPS + Supabase: [`docs/IMPLANTACAO-VPS-SUPABASE.md`](docs/IMPLANTACAO-VPS-SUPABASE.md) · Infraestrutura pendente: [`docs/INFRAESTRUTURA-PENDENTE.md`](docs/INFRAESTRUTURA-PENDENTE.md)
+- Implantação: [`docs/IMPLANTACAO.md`](docs/IMPLANTACAO.md) · Checklist pré-produção: [`docs/CHECKLIST-PRE-PRODUCAO.md`](docs/CHECKLIST-PRE-PRODUCAO.md) · Backup: [`docs/BACKUP.md`](docs/BACKUP.md) · Instalação no site do cliente: [`docs/INSTALACAO-NO-SITE.md`](docs/INSTALACAO-NO-SITE.md) · Importar a V1: [`docs/IMPORTAR-V1.md`](docs/IMPORTAR-V1.md) · Validação no piloto (pendente): [`docs/VALIDACAO-PILOTO.md`](docs/VALIDACAO-PILOTO.md) · Testes: [`docs/TESTES.md`](docs/TESTES.md) · Roteiro do piloto: [`docs/ROTEIRO-PILOTO.md`](docs/ROTEIRO-PILOTO.md) · Compatibilidade: [`docs/COMPATIBILIDADE.md`](docs/COMPATIBILIDADE.md) · VPS + Supabase: [`docs/IMPLANTACAO-VPS-SUPABASE.md`](docs/IMPLANTACAO-VPS-SUPABASE.md) · Infraestrutura pendente: [`docs/INFRAESTRUTURA-PENDENTE.md`](docs/INFRAESTRUTURA-PENDENTE.md) · **Rodar no notebook e no celular: [`docs/DESENVOLVIMENTO-LOCAL.md`](docs/DESENVOLVIMENTO-LOCAL.md)**
 
 ## Estrutura
 ```
@@ -27,4 +27,4 @@ docs/               decisões, progresso, matriz, operação
 ```bash
 cp .env.example .env.local && npm install && npm run db:setup && npm run db:bootstrap && npm run dev
 ```
-Em outro terminal: `npm run worker`. Detalhes em `docs/OPERACAO.md`.
+Em outro terminal: `npm run worker`. Para abrir pelo celular na mesma rede: `npm run lan` (`docs/DESENVOLVIMENTO-LOCAL.md`). Detalhes em `docs/OPERACAO.md`.

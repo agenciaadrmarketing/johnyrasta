@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { comConta } from '@/shared/db';
 
 export type Checagem = {
@@ -156,10 +157,10 @@ export async function historicoDeAlertas(accountId: string, siteId: string, limi
   );
 }
 
-export async function contarAlertasAbertos(accountId: string): Promise<number> {
+export const contarAlertasAbertos = cache(async (accountId: string): Promise<number> => {
   const r = await comConta(accountId, (db) => db.one<{ n: number }>("select count(*)::int as n from alerts where state = 'aberto'"));
   return r?.n ?? 0;
-}
+});
 
 export type EstadoDaFila = { monitoresAtivos: number; devidos: number; atrasados: number; maisAntigoSegundos: number | null };
 

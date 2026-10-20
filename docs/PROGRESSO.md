@@ -1,5 +1,20 @@
 # Progresso — JohnyWeb V2
 
+## Fase 6.2 — Desenvolvimento local (notebook + celular), Supabase e lentidão (20/10/2026)
+
+VPS, nginx, DNS e implantação em produção **suspensos**. O banco dos testes é o **local de desenvolvimento**, não o Supabase.
+
+### Feito e testado aqui
+- `npm run lan` / `npm run lan:dev` / `npm run worker`: central e worker em processos separados no notebook, acessíveis pela rede (`docs/DESENVOLVIMENTO-LOCAL.md`). Login por HTTP em rede local testado em navegador: cookie `httpOnly`/`Lax`, sessão mantida após recarregar; com `APP_URL` https os cabeçalhos de produção voltam (D91).
+- Supabase: `ENV_FILE=.env.supabase` para apontar os scripts sem tocar no `.env.local`; preflight somente leitura; adaptação para administrador sem `BYPASSRLS` (D92), com `rls-admin.spec.ts`. **O preflight contra o projeto real não rodou**: nenhuma credencial chegou a este ambiente.
+- Revisão funcional e responsiva (`tests/e2e/revisao-responsiva.spec.ts`, desktop e Pixel 7): 18 telas com dados de revisão (checagens, incidente, medições, CrUX, eventos e contato enviados pelos endpoints reais) sem estouro horizontal, sem erro de console e sem HTTP 4xx/5xx; dados aparecem em Disponibilidade, Velocidade, Botões, Contatos e Relatório; edição de site e busca; tema claro + FX ligados. Capturas inspecionadas.
+- Lentidão (D93): `npm run medir -- --fx` e `DB_LOG_LENTO_MS`; `cache()` nas consultas repetidas.
+
+### Pendências reais de integração
+- Preflight e ligação ao Supabase real (credenciais no notebook, `.env.supabase`).
+- PageSpeed real (chave só no `.env.local`; a colada no chat deve ser revogada), e-mail real, site piloto.
+- Custo dos efeitos Matrix num celular físico (aqui só emulação de viewport).
+
 ## Fase 6.1 — Estabilização (20/10/2026)
 
 Preserva o design system Matrix e a abertura como central de sites. Quatro achados da revisão do commit `68042a1`, cada um confirmado no código, reproduzido por um teste que **falhava antes** da correção e passa depois (D82–D85):

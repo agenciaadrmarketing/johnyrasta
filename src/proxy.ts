@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { produzirSobHttpLocal } from '@/shared/ambiente';
 
 /**
  * Cabeçalhos de segurança com nonce por requisição (CSP). Vive aqui porque a
@@ -27,7 +28,8 @@ export function proxy(request: NextRequest) {
   resposta.headers.set('X-Content-Type-Options', 'nosniff');
   resposta.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   resposta.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()');
-  if (process.env.NODE_ENV === 'production') {
+  const httpLocal = produzirSobHttpLocal();
+  if (process.env.NODE_ENV === 'production' && !httpLocal) {
     resposta.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
   }
   if (SEM_CSP.some((p) => caminho.startsWith(p))) return resposta;
@@ -45,7 +47,8 @@ export function proxy(request: NextRequest) {
     `base-uri 'self'`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,
-    `upgrade-insecure-requests`,
+    // Sob HTTP local (APP_URL http:// em rede privada) o upgrade para HTTPS quebraria todos os recursos.
+    ...(httpLocal ? [] : [`upgrade-insecure-requests`]),
   ].join('; ');
   resposta.headers.set(process.env.CSP_RELATORIO === '1' ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy', csp);
   return resposta;

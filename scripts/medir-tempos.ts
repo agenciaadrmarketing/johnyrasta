@@ -4,6 +4,7 @@
  *
  *   MEDIR_BASE_URL=https://provisorio.exemplo.com MEDIR_EMAIL=… MEDIR_SENHA=… npm run medir
  *   opções: --repeticoes 5  --site <uuid>   (padrão: o primeiro site da lista)
+ *           --fx   mede também o custo dos efeitos Matrix (CPU do navegador com FX ligado × desligado)
  *
  * Credenciais só por ambiente (nunca por argumento). Para separar rede, servidor e banco:
  *   - "base" = tempo até o primeiro byte de /entrar (sem consulta ao banco): rede + Next ocioso;
@@ -90,6 +91,35 @@ async function main() {
       const a: Amostra[] = [];
       for (let i = 0; i < n; i++) a.push(await medir(`${base}/sites/${siteId}${slug ? `/${slug}` : ''}`));
       resultados.push([`Aba ${rotulo}`, a]);
+    }
+
+    if (process.argv.includes('--fx')) {
+      // Custo dos efeitos: CPU da aba (métricas do DevTools) em 4 s parados na listagem e no login (chuva de tela inteira).
+      const cdp = await ctx.newCDPSession(page);
+      await cdp.send('Performance.enable');
+      const cpuEm = async (url: string, fx: 'on' | 'off') => {
+        await page.goto(url, { waitUntil: 'load' });
+        await page.evaluate((v) => { try { localStorage.setItem('painel:fx', v); } catch {} document.documentElement.dataset.fx = v; }, fx);
+        await page.waitForTimeout(500);
+        const antes = (await cdp.send('Performance.getMetrics')).metrics;
+        // String, não função: o tsx injeta um auxiliar `__name` em funções transpiladas, que não existe na página.
+        const quadros0 = (await page.evaluate('new Promise((r) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 4000) requestAnimationFrame(f); else r(n); }; requestAnimationFrame(f); })')) as number;
+        const depois = (await cdp.send('Performance.getMetrics')).metrics;
+        const pega = (m: { name: string; value: number }[], k: string) => m.find((x) => x.name === k)?.value ?? 0;
+        const tarefa = (pega(depois, 'TaskDuration') - pega(antes, 'TaskDuration')) * 1000;
+        const script = (pega(depois, 'ScriptDuration') - pega(antes, 'ScriptDuration')) * 1000;
+        return { ocupadoMs: tarefa, scriptMs: script, fps: quadros0 / 4 };
+      };
+      console.log('\nCusto dos efeitos Matrix (4 s parados; CPU da aba via DevTools):');
+      console.log('| Tela | FX | CPU ocupada | só script | quadros/s |');
+      console.log('|---|---|---|---|---|');
+      for (const [rotulo, url] of [['Meus sites (chuva no cabeçalho)', `${base}/sites`], ['Entrar (chuva de tela inteira)', `${base}/entrar`]] as const) {
+        for (const fx of ['off', 'on'] as const) {
+          const r = await cpuEm(url, fx);
+          console.log(`| ${rotulo} | ${fx} | ${fmt(r.ocupadoMs)} (${(r.ocupadoMs / 40).toFixed(1)}%) | ${fmt(r.scriptMs)} | ${r.fps.toFixed(0)} |`);
+        }
+      }
+      await page.evaluate(() => { try { localStorage.removeItem('painel:fx'); } catch {} });
     }
 
     const b50 = percentil(baseTtfb, 50);

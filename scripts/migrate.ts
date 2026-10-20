@@ -4,6 +4,7 @@
  */
 import { Client } from 'pg';
 import { configDoPg } from '../src/shared/db/tls';
+import { garantirPoliticasDoAdministrador } from './rls-admin';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { loadEnv } from './env';
@@ -41,6 +42,9 @@ export async function runMigrations(connectionString: string, quiet = false): Pr
         throw new Error(`Falha na migração ${version}: ${error instanceof Error ? error.message : error}`);
       }
     }
+    // Administrador sem BYPASSRLS (PostgreSQL gerenciado): políticas explícitas para ele (scripts/rls-admin.ts).
+    const comPolitica = await garantirPoliticasDoAdministrador(client);
+    if (!quiet && comPolitica) console.log(`· administrador sem BYPASSRLS: políticas admin_* em ${comPolitica} tabela(s)`);
     if (!quiet) console.log(count ? `${count} migração(ões) aplicada(s)` : 'nenhuma migração pendente');
     return count;
   } finally {
