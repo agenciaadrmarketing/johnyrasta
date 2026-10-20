@@ -5,16 +5,24 @@
  *   npm run db:setup           cria e migra
  *   npm run db:setup -- --drop apaga e recria (NUNCA em produção)
  *
- * Lê DATABASE_URL_ADMIN (superusuário ou dono do database), e extrai usuário e
- * senha de DATABASE_URL e DATABASE_URL_WORKER para criar os papéis.
+ * Lê DATABASE_URL_ADMIN (superusuário ou dono do database com CREATEROLE), e extrai
+ * usuário e senha das URLs dos papéis para criá-los. Com DB_ROLE_SUFFIX (Supabase),
+ * o sufixo `.<ref>` do usuário do pooler é removido do nome do papel.
  */
 import { Client } from 'pg';
+import { configDoPg } from '../src/shared/db/tls';
 import { loadEnv } from './env';
 import { runMigrations } from './migrate';
 
+/** `DB_ROLE_SUFFIX` (Supabase): o pooler exige `papel.<ref do projeto>` na URL; o PAPEL no banco é só `papel`. */
+export function nomeDoPapel(usuarioDaUrl: string, sufixo = process.env.DB_ROLE_SUFFIX): string {
+  const fim = sufixo ? `.${sufixo}` : '';
+  return fim && usuarioDaUrl.endsWith(fim) ? usuarioDaUrl.slice(0, -fim.length) : usuarioDaUrl;
+}
+
 function partes(url: string) {
   const u = new URL(url);
-  return { user: decodeURIComponent(u.username), password: decodeURIComponent(u.password), database: u.pathname.slice(1) };
+  return { user: nomeDoPapel(decodeURIComponent(u.username)), password: decodeURIComponent(u.password), database: u.pathname.slice(1) };
 }
 
 async function main() {
@@ -31,7 +39,7 @@ async function main() {
   const alvo = partes(admin);
   const raiz = new URL(admin);
   raiz.pathname = '/postgres';
-  const c = new Client({ connectionString: raiz.toString() });
+  const c = new Client(configDoPg(raiz.toString()));
   await c.connect();
   try {
     if (drop) {
@@ -41,7 +49,10 @@ async function main() {
     }
     const existe = await c.query('select 1 from pg_database where datname = $1', [alvo.database]);
     if (existe.rowCount === 0) {
-      await c.query(`create database "${alvo.database}"`);
+      // Em PostgreSQL gerenciado (Supabase) o banco já existe (`postgres`) e quase sempre não se cria outro.
+      await c.query(`create database "${alvo.database}"`).catch((e) => {
+        throw new Error(`O banco "${alvo.database}" não existe e não foi possível criá-lo (${e instanceof Error ? e.message : e}). Em PostgreSQL gerenciado, use o banco que já existe (ex.: /postgres) na DATABASE_URL_ADMIN.`);
+      });
       console.log(`· banco ${alvo.database} criado`);
     }
     for (const url of [web, worker, ingest, forms]) {

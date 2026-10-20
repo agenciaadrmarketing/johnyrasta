@@ -73,5 +73,6 @@ Guarde segredos no cofre da hospedagem, nunca no repositório nem em chat.
 | Formulário → contato | | | PENDENTE | |
 | Segundo envio AJAX → novo contato/submissão | | | PENDENTE | |
 | Relatório = abas | | | PENDENTE | |
+| Tempos: preflight do banco, `npm run medir` (login, listagem, abas), `db-lento` | | | PENDENTE | |
 
 Qualquer divergência vira defeito registrado em `docs/DECISOES.md` antes de se declarar o piloto concluído.

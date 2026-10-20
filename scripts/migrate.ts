@@ -3,6 +3,7 @@
  * Usa DATABASE_URL_ADMIN: migração precisa de privilégio de DDL.
  */
 import { Client } from 'pg';
+import { configDoPg } from '../src/shared/db/tls';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { loadEnv } from './env';
@@ -10,7 +11,7 @@ import { loadEnv } from './env';
 const DIR = 'migrations';
 
 export async function runMigrations(connectionString: string, quiet = false): Promise<number> {
-  const client = new Client({ connectionString });
+  const client = new Client(configDoPg(connectionString));
   await client.connect();
   try {
     await client.query(`

@@ -6,6 +6,7 @@
  *   npm run db:demo   → cria demo@johnyweb.local / demo-johnyweb-2026
  */
 import { Client } from 'pg';
+import { configDoPg } from '../src/shared/db/tls';
 import { randomBytes } from 'node:crypto';
 import { loadEnv } from './env';
 import { hashPassword } from '../src/modules/accounts/password';
@@ -20,7 +21,7 @@ async function main() {
   }
   const url = process.env.DATABASE_URL_ADMIN;
   if (!url) throw new Error('Defina DATABASE_URL_ADMIN.');
-  const c = new Client({ connectionString: url });
+  const c = new Client(configDoPg(url));
   await c.connect();
   try {
     await c.query('begin');

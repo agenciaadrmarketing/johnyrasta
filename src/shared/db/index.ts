@@ -1,5 +1,6 @@
 import 'server-only';
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
+import { configDoPg } from '@/shared/db/tls';
 
 /**
  * Conexões por FINALIDADE, cada uma com o papel de menor privilégio.
@@ -19,25 +20,7 @@ declare global {
 
 const pools = (globalThis.__johnyPools ??= new Map<string, Pool>());
 
-const HOSTS_LOCAIS = new Set(['localhost', '127.0.0.1', '::1', 'host.docker.internal']);
-
-/**
- * TLS: obrigatório fora de hosts locais. Com `DATABASE_SSL_CA` a cadeia é
- * verificada; sem ela a conexão é cifrada mas não autenticada (protege contra
- * escuta passiva, não contra intermediário ativo).
- */
-export function tlsPara(connectionString: string): false | { rejectUnauthorized: boolean; ca?: string } {
-  const ca = process.env.DATABASE_SSL_CA;
-  const remoto = ca ? { rejectUnauthorized: true, ca } : { rejectUnauthorized: false };
-  let host: string;
-  try {
-    host = new URL(connectionString).hostname;
-  } catch {
-    // Formato que não é URL: não dá para saber se é local. Falhar FECHADO.
-    return remoto;
-  }
-  return HOSTS_LOCAIS.has(host) ? false : remoto;
-}
+export { tlsPara } from '@/shared/db/tls';
 
 function poolFor(envVar: string): Pool {
   const existing = pools.get(envVar);
@@ -51,10 +34,11 @@ function poolFor(envVar: string): Pool {
   }
 
   const serverless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+  // DB_POOL_MAX: conexões por papel nesta instância (padrão 10; 3 em serverless).
+  const maxEnv = Number(process.env.DB_POOL_MAX);
   const pool = new Pool({
-    connectionString,
-    ssl: tlsPara(connectionString),
-    max: serverless ? 3 : 10,
+    ...configDoPg(connectionString),
+    max: Number.isInteger(maxEnv) && maxEnv > 0 ? maxEnv : serverless ? 3 : 10,
     idleTimeoutMillis: serverless ? 10_000 : 30_000,
     connectionTimeoutMillis: 10_000,
   });
@@ -70,7 +54,7 @@ export type Queryable = {
   one<T extends QueryResultRow = QueryResultRow>(sql: string, params?: unknown[]): Promise<T | null>;
 };
 
-function wrap(client: PoolClient): Queryable {
+function wrap(client: PoolClient, contar?: { n: number }): Queryable {
   // Uma transação usa UMA conexão e o driver não aceita duas consultas
   // simultâneas nela. A fila serializa chamadas paralelas em vez de corromper.
   let fila: Promise<unknown> = Promise.resolve();
@@ -81,24 +65,36 @@ function wrap(client: PoolClient): Queryable {
   };
   return {
     query<T extends QueryResultRow = QueryResultRow>(sql: string, params: unknown[] = []) {
+      if (contar) contar.n += 1;
       return enfileirar(async () => (await client.query<T>(sql, params)).rows);
     },
     one<T extends QueryResultRow = QueryResultRow>(sql: string, params: unknown[] = []) {
+      if (contar) contar.n += 1;
       return enfileirar<T | null>(async () => (await client.query<T>(sql, params)).rows[0] ?? null);
     },
   };
 }
 
 async function transaction<T>(pool: Pool, accountId: string | null, fn: (db: Queryable) => Promise<T>): Promise<T> {
+  // DB_LOG_LENTO_MS: registra transações mais lentas que N ms (0 = todas) com o número de consultas.
+  // Diz se a lentidão é rede/banco (muitas consultas × latência) ou CPU. Sem a variável, não faz nada.
+  const limiar = process.env.DB_LOG_LENTO_MS === undefined || process.env.DB_LOG_LENTO_MS === '' ? null : Number(process.env.DB_LOG_LENTO_MS);
+  const t0 = limiar === null ? 0 : performance.now();
+  const contar = limiar === null ? undefined : { n: 0 };
   const client = await pool.connect();
+  const espera = limiar === null ? 0 : performance.now() - t0;
   try {
     await client.query('begin');
     if (accountId !== null) {
       // SET LOCAL: vale só até o fim desta transação, nunca vaza entre requisições.
       await client.query("select set_config('app.account_id', $1, true)", [accountId]);
     }
-    const result = await fn(wrap(client));
+    const result = await fn(wrap(client, contar));
     await client.query('commit');
+    if (limiar !== null && Number.isFinite(limiar)) {
+      const total = performance.now() - t0;
+      if (total >= limiar) console.log(`[db-lento] ${total.toFixed(0)} ms (conexão do pool ${espera.toFixed(0)} ms) · ${contar!.n} consulta(s) · conta=${accountId ? 'sim' : 'não'}`);
+    }
     return result;
   } catch (error) {
     await client.query('rollback').catch(() => {});

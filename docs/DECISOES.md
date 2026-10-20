@@ -289,3 +289,9 @@ O coletor deixou de escutar `reset`: `form.reset()`, timeout, erro e resposta in
 ### D87. Rollback só para versões verificadas
 "Migração aditiva" deixou de ser dada como garantia de retorno: migrações alteram permissões e restrições (0008, 0009). `docs/COMPATIBILIDADE.md` registra, por execução da suíte do commit antigo contra o schema atual em banco separado, quais versões são compatíveis. Hoje: `68042a1` (206/206) e `c30a982` (193/196, as 3 falhas são a matriz de permissões antiga); o código atual sobre schema sem 0009/0010 falha (6 testes) e não é suportado. Qualquer outra versão: não validada.
 
+### D88. Banco gerenciado (Supabase): só PostgreSQL, TLS único, pooler por finalidade
+Supabase entra apenas como PostgreSQL (sem Auth/Storage/Data API/chaves). TLS passou a vir de `src/shared/db/tls.ts` para web, worker e scripts (o `sslmode` da URL é removido porque sobrepunha a política no `pg`); CA por arquivo ou conteúdo. Conexões: web em pooler de **transação**, worker e scripts em pooler de **sessão** (IPv4); a conexão direta é IPv6. `db:setup` não presume superusuário nem criação de banco; `DB_ROLE_SUFFIX` separa o usuário do pooler (`papel.<ref>`) do papel no banco. O administrador precisa de `CREATEROLE` e `BYPASSRLS` (RLS é forçada). Os privilégios padrão do Supabase dão a `anon`/`authenticated` acesso às tabelas novas de `public`: `db:supabase-endurecer` os revoga após cada migração. Compatibilidade **emulada** localmente (214/214), não verificada contra o Supabase real.
+
+### D89. Medição da lentidão antes de otimizar
+`npm run medir` (login, listagem, abas; TTFB/DOM/carregada, p50/p95, base sem banco), `DB_LOG_LENTO_MS` (duração e nº de consultas por transação) e o preflight (latência de ida e volta e custo de uma transação da central: 4 idas e voltas). Nenhuma otimização foi feita sem número de produção.
+

@@ -1,0 +1,31 @@
+[Unit]
+Description=JohnyWeb V2 — central (Next.js)
+After=network-online.target
+Wants=network-online.target
+# Teto de reinícios: 10 falhas em 5 min param o laço (`systemctl reset-failed` retoma).
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=johnyweb
+Group=johnyweb
+WorkingDirectory=/srv/johnyweb/current
+EnvironmentFile=/etc/johnyweb/web.env
+# Escuta só em loopback: o nginx é a única porta pública.
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -p 3000 -H 127.0.0.1
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+# Logs vão para o journal: journalctl -u johnyweb-web -f
+SyslogIdentifier=johnyweb-web
+# Endurecimento básico
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/johnyweb
+MemoryMax=1500M
+
+[Install]
+WantedBy=multi-user.target

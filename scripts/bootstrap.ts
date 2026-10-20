@@ -8,6 +8,7 @@
  * Usa DATABASE_URL_ADMIN (a RLS não se aplica ao administrador).
  */
 import { Client } from 'pg';
+import { configDoPg } from '../src/shared/db/tls';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { loadEnv } from './env';
@@ -33,7 +34,7 @@ async function main() {
   loadEnv();
   const url = process.env.DATABASE_URL_ADMIN;
   if (!url) throw new Error('Defina DATABASE_URL_ADMIN.');
-  const c = new Client({ connectionString: url });
+  const c = new Client(configDoPg(url));
   await c.connect();
   try {
     const existe = await c.query('select count(*)::int as n from users where account_id in (select id from accounts where not is_demo)');

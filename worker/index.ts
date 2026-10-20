@@ -20,6 +20,7 @@
  *   EMAIL_API_KEY, EMAIL_FROM, EMAIL_WEBHOOK_URL, APP_URL   conforme o provedor (veja .env.example)
  */
 import { Pool } from 'pg';
+import { configDoPg } from '@/shared/db/tls';
 import { hostname } from 'node:os';
 import { loadEnv } from '../scripts/env';
 import { iniciarAgendador, type Tarefa } from './agendador';
@@ -53,7 +54,8 @@ const enviarEmail = criarEnviador(EMAIL);
 const URL_DA_CENTRAL = (process.env.APP_URL ?? '').trim().replace(/\/+$/, '') || null;
 
 // Os laços rodam ao mesmo tempo: disponibilidade + PageSpeed + e-mail + heartbeat/retenção.
-const pool = new Pool({ connectionString: url, max: CONCORRENCIA + CONCORRENCIA_PAGESPEED + 4 });
+const poolMax = Number(process.env.DB_POOL_MAX) > 0 ? Number(process.env.DB_POOL_MAX) : CONCORRENCIA + CONCORRENCIA_PAGESPEED + 4;
+const pool = new Pool({ ...configDoPg(url), max: poolMax });
 
 async function heartbeat(detalhes: Record<string, unknown>): Promise<void> {
   await pool.query(

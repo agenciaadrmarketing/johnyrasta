@@ -18,6 +18,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, stat } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { Client } from 'pg';
+import { configDoPg } from '../src/shared/db/tls';
 import { loadEnv } from './env';
 
 /** Papéis da aplicação. São objetos do CLUSTER, não do banco: um dump não os cria. */
@@ -72,6 +73,8 @@ export function conexaoParaFerramentas(url: string): { args: string[]; env: Node
   const env: NodeJS.ProcessEnv = { ...process.env, PGPASSWORD: decodeURIComponent(u.password) };
   const sslmode = u.searchParams.get('sslmode');
   if (sslmode) env.PGSSLMODE = sslmode;
+  // Com verify-ca/verify-full, o libpq precisa da CA do provedor (arquivo).
+  if (process.env.DATABASE_SSL_CA_FILE) env.PGSSLROOTCERT = process.env.DATABASE_SSL_CA_FILE;
   return { args, env };
 }
 
@@ -121,7 +124,7 @@ export function carimbo(agora: Date): string {
 }
 
 async function versaoDoServidor(url: string): Promise<string> {
-  const c = new Client({ connectionString: url });
+  const c = new Client(configDoPg(url));
   await c.connect();
   try {
     return (await c.query<{ v: string }>("select current_setting('server_version') as v")).rows[0]!.v;

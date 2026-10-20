@@ -10,6 +10,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { Client } from 'pg';
+import { configDoPg } from '../src/shared/db/tls';
 import { loadEnv } from './env';
 import { aplicarImportacao, lerExistentes, planejarImportacao, type DadosV1, type ItemDoPlano } from '../src/modules/portfolio/importacao-v1';
 
@@ -37,7 +38,7 @@ async function main() {
   if (!arquivo || !conta || !url) throw new Error('Uso: importar-v1.ts --arquivo <v1.json> --conta <uuid da conta> [--aplicar] [--monitorar]  (exige DATABASE_URL_ADMIN)');
   const dados = JSON.parse(readFileSync(arquivo, 'utf8')) as DadosV1;
   if (!Array.isArray(dados.clients) || !Array.isArray(dados.sites)) throw new Error('Arquivo inválido: esperado { clients: [], sites: [], monitored_urls?: [] }.');
-  const db = new Client({ connectionString: url });
+  const db = new Client(configDoPg(url));
   await db.connect();
   try {
     const existe = await db.query('select 1 from accounts where id = $1', [conta]);

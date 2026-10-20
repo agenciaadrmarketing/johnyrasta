@@ -1,0 +1,30 @@
+[Unit]
+Description=JohnyWeb V2 — worker (disponibilidade, PageSpeed, e-mail, retenção)
+After=network-online.target
+Wants=network-online.target
+# Teto de reinícios: 10 falhas em 5 min param o laço (`systemctl reset-failed` retoma).
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=johnyweb
+Group=johnyweb
+WorkingDirectory=/srv/johnyweb/current
+EnvironmentFile=/etc/johnyweb/worker.env
+ExecStart=/usr/bin/node node_modules/tsx/dist/cli.mjs worker/index.ts
+Restart=always
+RestartSec=5
+# SIGTERM: o worker espera as execuções em andamento (até ~90 s numa chamada lenta ao PageSpeed).
+KillSignal=SIGTERM
+TimeoutStopSec=100
+SyslogIdentifier=johnyweb-worker
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/johnyweb
+MemoryMax=800M
+
+[Install]
+WantedBy=multi-user.target

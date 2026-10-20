@@ -25,6 +25,7 @@ import { constants } from 'node:fs';
 import { access, readdir, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { Client } from 'pg';
+import { configDoPg } from '../src/shared/db/tls';
 import { loadEnv } from './env';
 import { PAPEIS_DA_APLICACAO, bancoDaUrl, conexaoParaFerramentas, executarPg, segundos, urlParaBanco } from './backup';
 import { relatorio, verificarRestauracao, type Verificacao } from './verificar-restauracao';
@@ -69,7 +70,7 @@ export async function lerCabecalhoDoDump(arquivo: string): Promise<CabecalhoDoDu
 
 /** Objetos de usuário no banco (tabelas, views, sequências, funções, schemas além de public). 0 = vazio. */
 async function conteudoDoBanco(url: string): Promise<number> {
-  const c = new Client({ connectionString: url });
+  const c = new Client(configDoPg(url));
   await c.connect();
   try {
     const r = await c.query<{ n: string }>(
@@ -106,7 +107,7 @@ export async function restaurarBackup(o: OpcoesDeRestauracao): Promise<Resultado
   const cabecalho = await lerCabecalhoDoDump(o.arquivo);
   log(`· arquivo: ${o.arquivo} · banco de origem no dump: ${cabecalho.banco ?? '?'} · PostgreSQL ${cabecalho.versaoServidor ?? '?'} · pg_dump ${cabecalho.versaoPgDump ?? '?'} · ${cabecalho.entradas} entradas`);
 
-  const raiz = new Client({ connectionString: urlParaBanco(o.urlAdmin, 'postgres') });
+  const raiz = new Client(configDoPg(urlParaBanco(o.urlAdmin, 'postgres')));
   await raiz.connect();
   let alvoCriado = false;
   let alvoRecriado = false;

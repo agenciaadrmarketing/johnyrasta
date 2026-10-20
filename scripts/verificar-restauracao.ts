@@ -14,6 +14,7 @@
  * depois do backup — compare com a hora do arquivo.
  */
 import { Client } from 'pg';
+import { configDoPg } from '../src/shared/db/tls';
 import { loadEnv } from './env';
 import { bancoDaUrl, urlParaBanco } from './backup';
 
@@ -49,7 +50,7 @@ type Inventario = {
 };
 
 async function inventario(url: string): Promise<Inventario> {
-  const c = new Client({ connectionString: url });
+  const c = new Client(configDoPg(url));
   await c.connect();
   try {
     const tabelas = (
