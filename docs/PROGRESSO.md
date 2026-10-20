@@ -1,5 +1,22 @@
 # Progresso — JohnyWeb V2
 
+## Fase 6 — Pendências conhecidas (20/10/2026)
+
+O contrato original não estava mais disponível; o escopo foi definido pelas pendências registradas ao fim da Fase 5.
+
+### Implementado e verificado localmente
+- **Alerta de regressão de PageSpeed confirmada** (migração `0009`, D78): duas medições seguidas ≥10 pontos abaixo da referência; resolve sozinho quando a nota volta; aparece em Atenção, nas preferências de e-mail e no texto do e-mail. `tests/integration/pagespeed-regressao.spec.ts` e unitários.
+- **Recuperação de senha por e-mail** (migração `0010`, D79): `/recuperar-senha`, `/redefinir-senha`, link no login; `tests/integration/recuperacao-senha.spec.ts` e e2e `tests/e2e/fase6.spec.ts`. O envio real não foi testado (depende de provedor e `APP_URL`).
+- **Importação do cadastro da V1** (D80): `npm run db:importar-v1`, `docs/IMPORTAR-V1.md`, `tests/integration/importacao-v1.spec.ts`.
+- **Verificação de restauração com grants por coluna** (D81).
+
+### Depende de credencial ou ambiente
+- Mesmas pendências da Fase 5 (chave PageSpeed, provedor de e-mail, `APP_URL`, piloto em site real, monitor externo, egress, agendamento do backup).
+- A importação foi testada só com dados de exemplo; rode a simulação contra o seu export real antes de aplicar.
+
+### Não feito
+- Portal de cliente leitor; importação de eventos, leads e medições da V1 (decisão D80); fração de checagens bem-sucedidas num período exato do passado.
+
 ## Fase 5 — Relatórios, notificações e lançamento (20/10/2026)
 
 ### Implementado e verificado localmente

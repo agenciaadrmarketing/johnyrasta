@@ -258,3 +258,16 @@ Incidentes do período vêm de `incidentesNoIntervalo` (recorte no SQL, até 500
 
 ### D77. Revisão adversarial da Fase 5 foi parcial
 Os agentes de revisão caíram por limite de gasto; os achados de privilégios, outbox, retenção e relatórios foram verificados e corrigidos manualmente. Operação e interface não tiveram revisão adversarial independente. Pendente: `verificar-restauracao.ts` não compara grants por coluna.
+
+### D78. Regressão de PageSpeed: confirmada, uma por episódio
+O alerta `regressao_pagespeed` só abre quando as DUAS medições ok mais recentes da mesma URL e dispositivo estão ≥10 pontos abaixo da medição de referência que veio antes delas; uma queda isolada continua só "possível regressão" (D-anterior). A chave de deduplicação inclui a referência, então um episódio gera um alerta; ele é resolvido pelo worker quando a nota volta a menos de 10 pontos da referência. Contas existentes não ganham o novo tipo na lista de e-mail sozinhas (é escolha delas); contas novas já o têm.
+
+### D79. Recuperação de senha: só com provedor real
+A tela só oferece o formulário quando há provedor de e-mail que entrega (não `log`) e `APP_URL`; senão diz o motivo e manda falar com quem administra. Token de 32 bytes aleatórios, só o SHA-256 no banco, validade de 60 min, uso único, no máximo 3 pedidos por hora por usuário; a resposta é a mesma exista ou não a conta e o envio roda fora do caminho da resposta. Concluir a recuperação encerra TODAS as sessões. A tabela é inacessível ao `app_web`: tudo passa por funções SECURITY DEFINER. Sem teste ao vivo com provedor real (depende de credencial).
+
+### D80. Importação da V1 é só cadastro
+Clientes, sites e até 3 URLs prioritárias por site, a partir de um JSON exportado pelo operador; simulação por padrão, aplicação transacional e idempotente. Eventos, leads e medições da V1 NÃO entram (modelos de medição diferentes). A V1 nunca é acessada pelo script. Ver `docs/IMPORTAR-V1.md`.
+
+### D81. Restauração compara grants por coluna
+`verificar-restauracao.ts` passou a incluir `attacl` das colunas nas concessões a `app_*`.
+

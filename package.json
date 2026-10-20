@@ -17,6 +17,7 @@
     "db:demo": "tsx scripts/demo.ts",
     "db:backup": "tsx scripts/backup.ts",
     "db:restaurar": "tsx scripts/restaurar.ts",
+    "db:importar-v1": "tsx scripts/importar-v1.ts",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
