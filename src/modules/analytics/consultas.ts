@@ -38,19 +38,21 @@ export type LinhaDeBotao = { buttonId: string; path: string; pos: string | null;
 export async function botoes(accountId: string, siteId: string, p: Periodo): Promise<LinhaDeBotao[]> {
   return comConta(accountId, (db) =>
     db.query<LinhaDeBotao>(
-      `with c as (
-         select e.id, coalesce(e.button_id, 'auto-' || e.action_kind) as button_id, e.path, e.button_pos, e.action_kind, e.auto_detected, e.session_id, e.occurred_at
-           from events e where e.site_id = $1 and not e.is_test and e.type = 'click' and e.occurred_at between $2 and $3
-       ), s as (
+      `with s as (
          select session_id, attributed_event_id from submissions where site_id = $1 and not is_test and receipt_status <> 'tentativa' and occurred_at between $2 and $3
+       ), c as (
+         select e.id, coalesce(e.button_id, 'auto-' || e.action_kind) as button_id, e.path, e.button_pos, e.action_kind, e.auto_detected, e.session_id, e.occurred_at,
+                  -- Contatos por clique contados AQUI, por subconsulta: um join com submissões multiplicaria a linha do clique.
+                  (select count(*) from s where s.attributed_event_id = e.id) as contatos
+           from events e where e.site_id = $1 and not e.is_test and e.type = 'click' and e.occurred_at between $2 and $3
        )
        select c.button_id as "buttonId", c.path, c.button_pos as pos, c.action_kind as kind, bool_or(c.auto_detected) as "autoDetected",
               count(*)::int as cliques,
               count(distinct c.session_id)::int as "sessoesComClique",
-              count(s.attributed_event_id)::int as "contatosAtribuidos",
+              sum(c.contatos)::int as "contatosAtribuidos",
               count(distinct c.session_id) filter (where exists (select 1 from s s2 where s2.session_id = c.session_id))::int as "sessoesConvertidas",
               max(c.occurred_at) as "ultimoClique"
-         from c left join s on s.attributed_event_id = c.id
+         from c
         group by c.button_id, c.path, c.button_pos, c.action_kind
         order by cliques desc, c.path`,
       [siteId, p.de, p.ate],

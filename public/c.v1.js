@@ -69,14 +69,26 @@
   d.addEventListener('submit', function (ev) {
     var f = ev.target; if (!f || !f.getAttribute) return;
     if (f.getAttribute('data-track-form') === null) return;
-    // Preenche session_key (para atribuição) e submission_id (idempotência) se o formulário os tiver vazios.
+    // session_key: SEMPRE a sessão atual (a chave guardada no campo pode ser de uma sessão que já expirou).
+    // submission_id: ciclo de vida abaixo. Valor posto pelo próprio site nunca é tocado.
     try {
-      var sk = f.querySelector('input[name="session_key"]'); if (sk && !sk.value) sk.value = sessao();
-      var si = f.querySelector('input[name="submission_id"]'); if (si && !si.value) si.value = 'sub' + id() + Date.now().toString(36);
+      var sk = f.querySelector('input[name="session_key"]'); if (sk) sk.value = sessao();
+      var si = f.querySelector('input[name="submission_id"]');
+      if (si && !si.value) { si.value = 'sub' + id() + Date.now().toString(36); si.setAttribute('data-jw-auto', si.value); }
     } catch (e) {}
     evento({ type: 'form_attempt', button_id: f.getAttribute('data-track-form') || 'form', action_kind: null });
     enviar();
   }, true);
+  // Fim do envio: o próximo é OUTRO envio. Só o id gerado pelo coletor (marcado em data-jw-auto) é descartado;
+  // enquanto o resultado for incerto (nenhum aviso), o mesmo id é mantido para a tentativa não duplicar.
+  function concluir(f) {
+    try {
+      var si = f && f.querySelector && f.querySelector('input[name="submission_id"]');
+      if (si && si.getAttribute('data-jw-auto') !== null && si.value === si.getAttribute('data-jw-auto')) { si.value = ''; si.removeAttribute('data-jw-auto'); }
+    } catch (e) {}
+  }
+  // form.reset() é o que a maioria das integrações AJAX faz ao confirmar o sucesso.
+  d.addEventListener('reset', function (ev) { var f = ev.target; if (f && f.getAttribute && f.getAttribute('data-track-form') !== null) concluir(f); }, true);
   // Rotas SPA.
   var ps = w.history.pushState, rs = w.history.replaceState;
   if (ps) w.history.pushState = function () { ps.apply(this, arguments); setTimeout(pageView, 0); };
@@ -89,6 +101,7 @@
     if (cmd === 'consent') { consentOk = a !== false; }
     else if (cmd === 'session') { return sessao(); }
     else if (cmd === 'test') { return testToken(); }
+    else if (cmd === 'submitted') { concluir(typeof a === 'string' ? d.querySelector('form[data-track-form="' + a + '"]') : a); }
     else if (cmd === 'click') { evento({ type: 'click', button_id: String(a || 'custom'), action_kind: 'outro', auto_detected: false }); }
   };
   w.__jw = 'v1';

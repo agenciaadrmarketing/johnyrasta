@@ -271,3 +271,15 @@ Clientes, sites e até 3 URLs prioritárias por site, a partir de um JSON export
 ### D81. Restauração compara grants por coluna
 `verificar-restauracao.ts` passou a incluir `attacl` das colunas nas concessões a `app_*`.
 
+### D82. Cliques por botão: contatos contados por clique, sem join
+`botoes()` contava com `count(*)` sobre um `left join` entre cliques e submissões; N submissões atribuídas ao mesmo clique multiplicavam o clique. Agora os contatos são contados por subconsulta correlacionada na linha do clique e o resultado só agrega essas linhas. Consumidores (aba Botões, relatório, exportação CSV) usam a mesma função.
+
+### D83. Recepção de formulário serializada por travas de aviso (advisory locks)
+Dentro da transação da recepção, antes de qualquer leitura: trava por `(site, submission_id)` e, depois, travas por identidade (e-mail e telefone normalizados) em ordem alfabética, todas `pg_advisory_xact_lock`. Resolve a criação de contatos excedentes (mesma identidade em duas transações) e o contato excedente de reenvios simultâneos, sem depender de nível de isolamento mais alto nem de reescrever o modelo. A ordem fixa evita deadlock; diagnóstico não pega travas de identidade. Isolamento por conta/site, anonimização e conflitos entre identidades ficam como estavam.
+
+### D84. Ciclo de vida do submission_id no coletor
+`session_key` é sobrescrito a cada envio com a sessão vigente. `submission_id` vazio é gerado e marcado (`data-jw-auto`); fica **mantido** enquanto o resultado for incerto (a nova tentativa não duplica) e só é descartado quando o envio termina: `form.reset()` ou `window.jw('submitted', '<nome>')`. Valor posto pelo site nunca é tocado. Sem aviso de fim, o próximo envio de um formulário AJAX na mesma página é descartado como duplicado — documentado em `docs/INSTALACAO-NO-SITE.md`, que também diz como atualizar.
+
+### D85. Worker com laços independentes
+`worker/agendador.ts`: disponibilidade, PageSpeed, e-mail, heartbeat e retenção rodam cada uma no seu laço e no seu intervalo; mesma tarefa nunca se sobrepõe; erro é tratado por tarefa; `parar()` espera execuções em andamento e acorda quem dorme. O pool passou a ter `CONCORRENCIA + CONCORRENCIA_PAGESPEED + 4` conexões. Timeouts e tolerâncias não foram alterados. Heartbeat reporta `fase: 6` e versão `v2-fase6`.
+

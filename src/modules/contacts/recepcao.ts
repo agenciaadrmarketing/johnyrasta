@@ -53,6 +53,16 @@ export async function receberSubmissao(db: Queryable, site: SiteParaFormulario, 
   const ids = identificadores(campos, site.defaultCountry);
   if (!ids.valido) return { ok: false, motivo: 'é preciso ao menos um contato válido (e-mail ou telefone)', codigo: 422 };
 
+  // Serialização (vale até o fim da transação): primeiro por submissão, depois por identidade.
+  // Sem isso, duas requisições simultâneas não enxergam o contato uma da outra, criam dois
+  // contatos e só uma ganha a identidade. A ordem fixa (submissão, depois identidades em
+  // ordem alfabética) evita deadlock. Diagnóstico não toca em contatos e não precisa das travas de identidade.
+  await db.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [`sub:${site.id}:${entrada.submission_id}`]);
+  if (!entrada.test_token) {
+    const chaves = [ids.email ? `id:${site.id}:email:${ids.email}` : null, ids.phone ? `id:${site.id}:phone:${ids.phone}` : null].filter((k): k is string => !!k).sort();
+    for (const k of chaves) await db.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [k]);
+  }
+
   const existente = await db.one<{ id: string; receipt_status: ResultadoDaSubmissao extends { status: infer S } ? S : never; contact_id: string | null; attribution: 'ultimo_clique' | 'sem_atribuicao' }>(
     'select id, receipt_status, contact_id, attribution from submissions where site_id = $1 and submission_id = $2',
     [site.id, entrada.submission_id],

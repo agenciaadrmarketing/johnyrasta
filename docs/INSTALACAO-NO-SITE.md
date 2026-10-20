@@ -73,7 +73,14 @@ Detalhes que evitam surpresa:
 
 Escolha o modo na aba Instalação (passo 1, "Formulários"). A central mostra, ao lado de cada contato, de onde veio a evidência. Campos aceitos por padrão: `name`, `email`, `phone` (ativáveis: `company`, `subject`, `message`); tudo o mais é descartado no servidor. É preciso ao menos **um** e-mail ou telefone válido; o nome é opcional. Telefone sem DDI recebe o país padrão do site.
 
-Em todos os modos, ponha `data-track-form="<nome>"` no `<form>`: é isso que faz o coletor registrar a tentativa de envio (`form_attempt`) e preencher `session_key` e `submission_id` vazios no momento do envio — o `session_key` é o que permite atribuir o contato ao último clique da mesma sessão (até 30 minutos antes).
+Em todos os modos, ponha `data-track-form="<nome>"` no `<form>`: é isso que faz o coletor registrar a tentativa de envio (`form_attempt`) e preencher `session_key` e `submission_id` no momento do envio — o `session_key` é o que permite atribuir o contato ao último clique da mesma sessão (até 30 minutos antes).
+
+**Ciclo de vida (coletor atual):**
+- `session_key` é **sobrescrito a cada envio** com a sessão vigente; um valor antigo no campo (sessão que já expirou depois de 30 minutos de inatividade) nunca é reaproveitado.
+- `submission_id` vazio é gerado pelo coletor **e mantido** enquanto o resultado do envio for incerto: se a rede falhar e a pessoa tentar de novo, o mesmo identificador evita duplicar o contato.
+- O identificador gerado só é descartado quando o envio **termina**. Formulário que recarrega a página já começa vazio. Formulário **AJAX que permanece na página** precisa avisar o fim do envio (sucesso ou recusa definitiva) de uma destas formas: chamar `form.reset()` (o coletor escuta o evento `reset`) ou `window.jw('submitted', '<nome do data-track-form>')`. Sem o aviso, o próximo envio reutiliza o identificador e a central o descarta como duplicado (`duplicated: true`).
+- Um `submission_id` que o **seu site** colocou no campo nunca é alterado nem descartado pelo coletor; a idempotência passa a ser responsabilidade do site.
+- **Atualização:** o arquivo `c.v1.js` é servido com cache curto (5 min); sites que já têm a tag recebem o comportamento novo sozinhos. A única mudança exigida é o aviso de fim de envio nos formulários AJAX que ficam na página.
 
 ### Modo "endpoint da central" (o site posta direto aqui)
 Sucesso só depois de persistido. Reenvio com o mesmo `submission_id` não duplica.
@@ -90,7 +97,7 @@ Sucesso só depois de persistido. Reenvio com o mesmo `submission_id` não dupli
 ```
 Ou por `fetch` com JSON: `{ submission_id, fields: { name, email, phone }, page_path, session_key }`. Resposta: `{ ok: true, status: "recebido", duplicated: false, attribution: "ultimo_clique" | "sem_atribuicao" }`. O endpoint aceita `application/json` e `application/x-www-form-urlencoded`, tem CORS aberto, corpo até 32 KB e 30 envios por minuto por site e IP.
 
-- `submission_id`: 8 a 128 caracteres de `A-Z a-z 0-9 _ . : -`. Gere um por envio (o coletor gera se o campo estiver vazio e o formulário tiver `data-track-form`).
+- `submission_id`: 8 a 128 caracteres de `A-Z a-z 0-9 _ . : -`. Gere um por envio (o coletor gera se o campo estiver vazio e o formulário tiver `data-track-form`; veja o ciclo de vida acima).
 - `website` é o **honeypot**: campo escondido que humanos não preenchem; preenchido, o envio é rejeitado.
 - Um `<form method="post">` sem JavaScript navega para a resposta JSON da central. Para manter o visitante no site, envie por `fetch` e mostre a mensagem de sucesso só quando `ok` for `true`.
 
@@ -164,7 +171,7 @@ Confira a migração com o teste com token (seção 5) e, em 24 horas, com o sel
 
 ## 7. O que o coletor NÃO faz
 
-- **Não lê campos de formulário.** No envio de um formulário com `data-track-form` ele registra só o gesto (`form_attempt`) e preenche `session_key`/`submission_id` vazios. Os dados do formulário chegam à central apenas pelo caminho que você escolher na seção 3 — ou não chegam.
+- **Não lê campos de formulário.** No envio de um formulário com `data-track-form` ele registra só o gesto (`form_attempt`) e preenche `session_key` (sempre) e `submission_id` (se vazio). Os dados do formulário chegam à central apenas pelo caminho que você escolher na seção 3 — ou não chegam.
 - **Não captura teclas, senhas, cliques fora de botões marcados ou detectados, nem conteúdo da página.**
 - **Não envia a query string nem o fragmento** da URL: só o caminho (`/contato`, nunca `/contato?email=…`). Exceções: apenas `utm_source`, `utm_medium` e `utm_campaign` são lidas da URL. O referrer é reduzido ao host no servidor.
 - **Não grava IP.** O IP serve só para o limite de requisições, em memória, e não é persistido com eventos nem sessões.

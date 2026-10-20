@@ -5,7 +5,8 @@
  *
  * Laço: reivindica monitores devidos (fila com lease no Postgres), verifica
  * com o verificador seguro, aplica a máquina de estados, grava, agenda a
- * próxima checagem. Heartbeat a cada 30 s; retenção a cada hora. Nada aqui
+ * próxima checagem. Cada tarefa (disponibilidade, PageSpeed, e-mail, heartbeat
+ * a cada 30 s, retenção a cada hora) tem o seu laço independente. Nada aqui
  * depende de uma aba aberta nem de visitas à central.
  *
  * Papel do banco: app_worker (DATABASE_URL_WORKER). Sem acesso a usuários,
@@ -21,6 +22,7 @@
 import { Pool } from 'pg';
 import { hostname } from 'node:os';
 import { loadEnv } from '../scripts/env';
+import { iniciarAgendador, type Tarefa } from './agendador';
 import { rodada, retencao, alertaDeColetaParada } from './rodada';
 import { agendarDiarios, alertaDeFilaParada, rodadaPageSpeed } from './pagespeed';
 import { criarEnviador } from './email';
@@ -37,7 +39,7 @@ if (!url) {
 }
 
 const WORKER_ID = process.env.WORKER_ID ?? `${hostname()}-${process.pid}`;
-const VERSAO = `v2-fase5`;
+const VERSAO = `v2-fase6`;
 const TICK_MS = 5_000;
 const HEARTBEAT_MS = 30_000;
 const RETENCAO_MS = 60 * 60 * 1000;
@@ -50,7 +52,8 @@ const EMAIL = lerConfigDeEmail(process.env);
 const enviarEmail = criarEnviador(EMAIL);
 const URL_DA_CENTRAL = (process.env.APP_URL ?? '').trim().replace(/\/+$/, '') || null;
 
-const pool = new Pool({ connectionString: url, max: CONCORRENCIA + 2 });
+// Os laços rodam ao mesmo tempo: disponibilidade + PageSpeed + e-mail + heartbeat/retenção.
+const pool = new Pool({ connectionString: url, max: CONCORRENCIA + CONCORRENCIA_PAGESPEED + 4 });
 
 async function heartbeat(detalhes: Record<string, unknown>): Promise<void> {
   await pool.query(
@@ -71,9 +74,6 @@ async function estadoDaFila() {
   return r.rows[0]!;
 }
 
-let encerrando = false;
-let ultimoHeartbeat = 0;
-let ultimaRetencao = 0;
 let ultimaAgenda = 0;
 let acumuladoPs = { reivindicados: 0, medidos: 0, retentativas: 0, falhas: 0, descartados: 0 };
 let acumulado = { reivindicados: 0, gravados: 0, descartados: 0, erros: 0 };
@@ -89,17 +89,54 @@ async function loop() {
   } else {
     console.log(`[worker] e-mail desativado: alertas só na central (${EMAIL.motivo}).`);
   }
-  while (!encerrando) {
-    const inicio = Date.now();
-    try {
-      const r = await rodada(pool, { workerId: WORKER_ID, concorrencia: CONCORRENCIA, verificador: { excecoesDeRede: EXCECOES } });
-      acumulado = { reivindicados: acumulado.reivindicados + r.reivindicados, gravados: acumulado.gravados + r.gravados, descartados: acumulado.descartados + r.descartados, erros: acumulado.erros + r.erros };
-      if (r.reivindicados) console.log(`[worker] rodada: ${r.gravados} gravadas, ${r.descartados} descartadas (lease perdido), ${r.erros} erros`);
-    } catch (e) {
-      console.error('[worker] rodada falhou:', e instanceof Error ? e.message : e);
-    }
-    if (CHAVE_PAGESPEED) {
-      try {
+
+  // Cada tarefa tem o seu laço (worker/agendador.ts): o PageSpeed lento não atrasa
+  // disponibilidade nem heartbeat.
+  const tarefas: Tarefa[] = [
+    {
+      nome: 'disponibilidade',
+      intervaloMs: TICK_MS,
+      executar: async () => {
+        const r = await rodada(pool, { workerId: WORKER_ID, concorrencia: CONCORRENCIA, verificador: { excecoesDeRede: EXCECOES } });
+        acumulado = { reivindicados: acumulado.reivindicados + r.reivindicados, gravados: acumulado.gravados + r.gravados, descartados: acumulado.descartados + r.descartados, erros: acumulado.erros + r.erros };
+        if (r.reivindicados) console.log(`[worker] rodada: ${r.gravados} gravadas, ${r.descartados} descartadas (lease perdido), ${r.erros} erros`);
+      },
+    },
+    {
+      nome: 'heartbeat',
+      intervaloMs: HEARTBEAT_MS,
+      executar: async () => {
+        const fila = await estadoDaFila();
+        const outbox = await estadoDoOutbox(pool);
+        await heartbeat({
+          fase: 6,
+          fila,
+          acumulado,
+          concorrencia: CONCORRENCIA,
+          pagespeed: { configurado: !!CHAVE_PAGESPEED, acumulado: acumuladoPs },
+          email: { provedor: EMAIL.ativo ? EMAIL.provedor : null, pendentes: outbox.pendentes, falhas24h: outbox.falhas24h, acumulado: acumuladoEmail },
+        });
+      },
+    },
+    {
+      nome: 'retencao',
+      intervaloMs: RETENCAO_MS,
+      executar: async () => {
+        const n = await retencao(pool);
+        if (n.checks || n.events || n.runs) console.log(`[worker] retenção: ${n.checks} checagens, ${n.events} eventos, ${n.runs} medições apagados`);
+        // Retenção de contatos por site (política 'dias'): anonimiza, nunca apaga a linha.
+        const ret = await aplicarRetencao(pool);
+        if (ret.anonimizados || ret.erros) console.log(`[worker] retenção de contatos: ${ret.anonimizados} anonimizados, ${ret.erros} erros (${ret.candidatos} candidatos)`);
+        const parados = await alertaDeColetaParada(pool);
+        if (parados) console.log(`[worker] coleta interrompida em ${parados} site(s)`);
+      },
+    },
+  ];
+  if (CHAVE_PAGESPEED) {
+    tarefas.push({
+      nome: 'pagespeed',
+      intervaloMs: TICK_MS,
+      executar: async () => {
         if (Date.now() - ultimaAgenda > AGENDA_MS) {
           const n = await agendarDiarios(pool);
           if (n) console.log(`[worker] pagespeed: ${n} medições agendadas para hoje`);
@@ -109,60 +146,33 @@ async function loop() {
         const ps = await rodadaPageSpeed(pool, { chave: CHAVE_PAGESPEED, concorrencia: CONCORRENCIA_PAGESPEED, workerId: WORKER_ID });
         if (ps.reivindicados) console.log(`[worker] pagespeed: ${ps.medidos} medidas, ${ps.retentativas} retentativas, ${ps.falhas} falhas`);
         acumuladoPs = { reivindicados: acumuladoPs.reivindicados + ps.reivindicados, medidos: acumuladoPs.medidos + ps.medidos, retentativas: acumuladoPs.retentativas + ps.retentativas, falhas: acumuladoPs.falhas + ps.falhas, descartados: acumuladoPs.descartados + ps.descartados };
-      } catch (e) {
-        console.error('[worker] pagespeed falhou:', e instanceof Error ? e.message : e);
-      }
-    }
-    if (enviarEmail) {
-      try {
+      },
+    });
+  }
+  if (enviarEmail) {
+    tarefas.push({
+      nome: 'email',
+      intervaloMs: TICK_MS,
+      executar: async () => {
         const ob = await rodadaOutbox(pool, { enviar: enviarEmail, provedor: EMAIL.ativo ? EMAIL.provedor : 'nenhum', urlDaCentral: URL_DA_CENTRAL });
         if (ob.enfileiradas || ob.reivindicadas) console.log(`[worker] e-mail: ${ob.enfileiradas} enfileiradas, ${ob.enviadas} enviadas, ${ob.reagendadas} reagendadas, ${ob.falhas} falhas, ${ob.descartadas} descartadas`);
         acumuladoEmail = { enfileiradas: acumuladoEmail.enfileiradas + ob.enfileiradas, enviadas: acumuladoEmail.enviadas + ob.enviadas, reagendadas: acumuladoEmail.reagendadas + ob.reagendadas, falhas: acumuladoEmail.falhas + ob.falhas, descartadas: acumuladoEmail.descartadas + ob.descartadas };
-      } catch (e) {
-        console.error('[worker] outbox de e-mail falhou:', e instanceof Error ? e.message : e);
-      }
-    }
-    if (Date.now() - ultimoHeartbeat > HEARTBEAT_MS) {
-      try {
-        const fila = await estadoDaFila();
-        const outbox = await estadoDoOutbox(pool);
-        await heartbeat({
-          fase: 5,
-          fila,
-          acumulado,
-          concorrencia: CONCORRENCIA,
-          pagespeed: { configurado: !!CHAVE_PAGESPEED, acumulado: acumuladoPs },
-          email: { provedor: EMAIL.ativo ? EMAIL.provedor : null, pendentes: outbox.pendentes, falhas24h: outbox.falhas24h, acumulado: acumuladoEmail },
-        });
-        ultimoHeartbeat = Date.now();
-      } catch (e) {
-        console.error('[worker] heartbeat falhou:', e instanceof Error ? e.message : e);
-      }
-    }
-    if (Date.now() - ultimaRetencao > RETENCAO_MS) {
-      try {
-        const n = await retencao(pool);
-        if (n.checks || n.events || n.runs) console.log(`[worker] retenção: ${n.checks} checagens, ${n.events} eventos, ${n.runs} medições apagados`);
-        // Retenção de contatos por site (política 'dias'): anonimiza, nunca apaga a linha.
-        const ret = await aplicarRetencao(pool);
-        if (ret.anonimizados || ret.erros) console.log(`[worker] retenção de contatos: ${ret.anonimizados} anonimizados, ${ret.erros} erros (${ret.candidatos} candidatos)`);
-        const parados = await alertaDeColetaParada(pool);
-        if (parados) console.log(`[worker] coleta interrompida em ${parados} site(s)`);
-        ultimaRetencao = Date.now();
-      } catch (e) {
-        console.error('[worker] retenção falhou:', e instanceof Error ? e.message : e);
-      }
-    }
-    const espera = Math.max(250, TICK_MS - (Date.now() - inicio));
-    await new Promise((r) => setTimeout(r, espera));
+      },
+    });
   }
+
+  const agendador = iniciarAgendador(tarefas, { aoErro: (nome, e) => console.error(`[worker] ${nome} falhou:`, e instanceof Error ? e.message : e) });
+  await new Promise<void>((resolve) => { parar = resolve; });
+  // Encerramento gracioso: espera as execuções em andamento antes de fechar o pool.
+  await agendador.parar();
   await pool.end();
   console.log('[worker] encerrado.');
 }
 
+let parar: () => void = () => {};
 for (const sinal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sinal, () => {
-    encerrando = true;
+    parar();
   });
 }
 

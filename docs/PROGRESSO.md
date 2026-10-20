@@ -1,5 +1,16 @@
 # Progresso — JohnyWeb V2
 
+## Fase 6.1 — Estabilização (20/10/2026)
+
+Preserva o design system Matrix e a abertura como central de sites. Quatro achados da revisão do commit `68042a1`, cada um confirmado no código, reproduzido por um teste que **falhava antes** da correção e passa depois (D82–D85):
+
+1. Cliques inflados pelo join em `botoes()` → `tests/integration/estabilizacao.spec.ts`.
+2. Concorrência na criação de contatos e idempotência → mesmo arquivo, com conexões distintas e barreira que força as duas transações ao ponto da disputa (cenários A e B).
+3. Formulário AJAX reutilizando `submission_id` e sessão antiga → `tests/e2e/coletor-formulario.spec.ts` (coletor real no Chromium, relógio controlado; cenários A, B, B2 e C).
+4. PageSpeed bloqueando disponibilidade e heartbeat → `tests/unit/agendador.spec.ts` e `tests/integration/worker-lacos.spec.ts` (PageSpeed pendente, monitor devido checado, heartbeat contínuo).
+
+Também: `docs/VALIDACAO-PILOTO.md` (piloto **PENDENTE**), `docs/TESTES.md` (teste ignorado e limites dos testes simulados).
+
 ## Fase 6 — Pendências conhecidas (20/10/2026)
 
 O contrato original não estava mais disponível; o escopo foi definido pelas pendências registradas ao fim da Fase 5.
