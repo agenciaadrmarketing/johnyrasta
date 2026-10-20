@@ -7,7 +7,7 @@ import { estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
 import { estadoDaFila, ROTULO_ALERTA } from '@/modules/monitoring/consultas';
 import { estadoPageSpeed } from '@/modules/performance/consultas';
 import { estadoDoProvedorDeEmail, preferenciasDeNotificacao, ROTULO_ENTREGA, ultimasEntregas } from '@/modules/notifications/consultas';
-import { TIPOS_DE_ALERTA } from '@/modules/notifications/regras';
+import { TIPOS_OFERECIDOS } from '@/modules/notifications/regras';
 import { semConta, verificarBanco } from '@/shared/db';
 import { Cabecalho } from '@/shared/ui/Cabecalho';
 import { Painel, Aviso } from '@/shared/ui/Painel';
@@ -44,7 +44,7 @@ export default async function PaginaConfiguracoes() {
   // O worker é outro processo: só o heartbeat diz o que ELE leu do ambiente.
   const workerDiverge = email.worker !== null && email.worker.provedor !== provedorApp;
   const preferenciaSemProvedor = prefs.emailEnabled && !email.aplicacao.ativo;
-  const tipos = TIPOS_DE_ALERTA.map((kind) => ({ kind, rotulo: ROTULO_ALERTA[kind] ?? kind }));
+  const tipos = TIPOS_OFERECIDOS.map((kind) => ({ kind, rotulo: ROTULO_ALERTA[kind] ?? kind }));
   const celula = { padding: '9px 10px', fontSize: 'var(--tipo-apoio)' } as const;
   const cabecalhoTabela = { textAlign: 'left', padding: '9px 10px', fontSize: 'var(--tipo-legenda)', color: 'var(--tx2)', borderBottom: '1px solid var(--bd)', whiteSpace: 'nowrap' } as const;
 
@@ -154,7 +154,7 @@ export default async function PaginaConfiguracoes() {
           <h3 style={{ fontSize: 'var(--tipo-corpo)', fontWeight: 'var(--peso-forte)', marginTop: 'var(--esp-6)', marginBottom: 'var(--esp-2)' }}>Últimas entregas</h3>
           {entregas.length === 0 ? (
             !email.aplicacao.ativo ? (
-              <EstadoVazio tom="configurar" kicker="aguardando configuração" icone="caixa" titulo="Nenhuma entrega registrada" explicacao="Sem provedor configurado, o worker não enfileira nada. Configure EMAIL_PROVIDER no ambiente do worker para começar." />
+              <EstadoVazio tom="configurar" kicker="aguardando configuração" icone="caixa" titulo="Nenhuma entrega registrada" explicacao="Sem provedor configurado, nada é enviado e os alertas desse período ficam só na central (registrados aqui como descartados). Configure EMAIL_PROVIDER no ambiente do worker para começar." />
             ) : !prefs.emailEnabled ? (
               <EstadoVazio tom="neutro" icone="caixa" titulo="E-mail desligado" explicacao="Ligue o envio acima e informe destinatários. Alertas gerados a partir daí passam a ser entregues." />
             ) : (

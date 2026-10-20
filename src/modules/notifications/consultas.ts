@@ -88,13 +88,18 @@ export async function estadoDoProvedorDeEmail(accountId: string): Promise<Estado
     ),
   );
   const e = hb?.email;
+  // Pendentes e falhas são DESTA conta (RLS), não o total global que o heartbeat carrega:
+  // o heartbeat é do processo, que atende todas as contas.
+  const c = await comConta(accountId, (db) =>
+    db.one<{ pendentes: number; falhas24h: number }>(
+      `select count(*) filter (where state = 'pendente')::int as pendentes,
+              count(*) filter (where state = 'falhou' and updated_at > now() - interval '24 hours')::int as "falhas24h"
+         from alert_deliveries`,
+    ),
+  );
   const worker =
     e && typeof e === 'object'
-      ? {
-          provedor: typeof e.provedor === 'string' ? e.provedor : null,
-          pendentes: typeof e.pendentes === 'number' ? e.pendentes : 0,
-          falhas24h: typeof e.falhas24h === 'number' ? e.falhas24h : 0,
-        }
+      ? { provedor: typeof e.provedor === 'string' ? e.provedor : null, pendentes: c?.pendentes ?? 0, falhas24h: c?.falhas24h ?? 0 }
       : null;
   return { aplicacao, worker };
 }

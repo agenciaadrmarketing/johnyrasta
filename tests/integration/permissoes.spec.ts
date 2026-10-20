@@ -47,11 +47,11 @@ const MATRIZ: Record<string, Partial<Record<Papel, Priv[]>>> = {
   crux_snapshots: { app_web: S, app_worker: SI },
   // 0005 — eventos e contatos (+ 0007: worker lê site_tracking e conflitos; web apaga identidades)
   site_tracking: { app_web: SIU, app_worker: S, app_ingest: S, app_forms: S },
-  sessions: { app_web: S, app_ingest: SIU, app_forms: SIU },
+  sessions: { app_web: S, app_worker: SD, app_ingest: SIU, app_forms: SIU },
   events: { app_web: S, app_worker: SD, app_ingest: SI, app_forms: S },
   contacts: { app_web: SU, app_forms: SIU }, // app_worker: só colunas (abaixo)
   contact_identities: { app_web: SD, app_worker: ['DELETE'], app_forms: SIU },
-  submissions: { app_web: S, app_worker: S, app_forms: SIU },
+  submissions: { app_web: S, app_forms: SIU }, // app_worker: só colunas (0008)
   contact_conflicts: { app_web: SU, app_worker: S, app_forms: SIU },
   webhook_nonces: { app_forms: SID },
   diagnostic_sessions: { app_web: SIU, app_ingest: SU, app_forms: SU },
@@ -72,7 +72,7 @@ const COLUNAS: Record<string, Partial<Record<Papel, Partial<Record<Priv, string[
     app_web: { UPDATE: ['contact_id'] },
   },
   submissions: {
-    app_worker: { UPDATE: ['fields'] },
+    app_worker: { SELECT: ['id', 'account_id', 'site_id', 'contact_id', 'session_id'], UPDATE: ['fields'] },
     app_web: { UPDATE: ['contact_id', 'fields'] },
   },
   contact_conflicts: {
@@ -365,6 +365,9 @@ describe('e) privilégio por coluna da retenção (0007)', () => {
     await expect(worker.query('select name from contacts')).rejects.toThrow(/permission denied/);
     await expect(worker.query('select value from contact_identities')).rejects.toThrow(/permission denied/);
     await expect(worker.query('select * from contacts')).rejects.toThrow(/permission denied/);
+    await expect(worker.query('select fields from submissions')).rejects.toThrow(/permission denied/);
+    await expect(worker.query('select * from submissions')).rejects.toThrow(/permission denied/);
+    await expect(worker.query('select id, site_id, contact_id from submissions')).resolves.toBeTruthy();
     await expect(worker.query(`update submissions set receipt_status = 'confirmado_destino'`)).rejects.toThrow(/permission denied/);
     await expect(worker.query(`update contacts set first_real_at = now()`)).rejects.toThrow(/permission denied/);
     await expect(worker.query(`insert into contact_identities (account_id, site_id, contact_id, kind, value) select account_id, site_id, id, 'email', 'x@y.z' from contacts limit 1`)).rejects.toThrow(/permission denied/);

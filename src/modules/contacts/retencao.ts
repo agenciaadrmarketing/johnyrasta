@@ -27,7 +27,7 @@ export type MotivoDeExclusao = 'manual' | 'retencao';
 
 export type ResultadoDaExclusao =
   | { excluido: true; identidades: number; submissoes: number; conflitos: number }
-  | { excluido: false; motivo: 'nao_encontrado' | 'ja_anonimizado' };
+  | { excluido: false; motivo: 'nao_encontrado' | 'ja_anonimizado' | 'nao_vencido' };
 
 export async function excluirContatoNoBanco(
   db: Queryable,
@@ -36,12 +36,23 @@ export async function excluirContatoNoBanco(
   const agora = entrada.agora ?? new Date();
   // Com RLS (central), um contato de outra conta é "nenhuma linha"; o filtro
   // por account_id e site_id vale também para o worker, que enxerga tudo.
-  const c = await db.one<{ id: string; anonymized_at: Date | null }>(
-    'select id, anonymized_at from contacts where id = $1 and site_id = $2 and account_id = $3',
-    [entrada.contactId, entrada.siteId, entrada.accountId],
+  // `for update`: serializa com a recepção de formulários, que trava a mesma linha
+  // antes de reutilizar o contato — sem isso, um envio concorrente restaurava nome
+  // e identidades de um contato recém-anonimizado.
+  const c = await db.one<{ id: string; anonymized_at: Date | null; vencido: boolean }>(
+    `select c.id, c.anonymized_at,
+            (t.contact_retention_policy = 'dias'
+             and coalesce(c.last_real_at, c.created_at) < $4::timestamptz - make_interval(days => t.contact_retention_days)) as vencido
+       from contacts c left join site_tracking t on t.site_id = c.site_id
+      where c.id = $1 and c.site_id = $2 and c.account_id = $3
+      for update of c`,
+    [entrada.contactId, entrada.siteId, entrada.accountId, agora],
   );
   if (!c) return { excluido: false, motivo: 'nao_encontrado' };
   if (c.anonymized_at) return { excluido: false, motivo: 'ja_anonimizado' };
+  // Retenção automática: o prazo é REAVALIADO com a linha travada. Um envio real que
+  // chegou entre a seleção dos candidatos e esta transação renova `last_real_at`.
+  if (entrada.motivo === 'retencao' && !c.vencido) return { excluido: false, motivo: 'nao_vencido' };
 
   const identidades = await db.query<{ id: string }>('delete from contact_identities where contact_id = $1 and site_id = $2 returning id', [c.id, entrada.siteId]);
   const submissoes = await db.query<{ id: string }>(`update submissions set fields = '{}'::jsonb where contact_id = $1 and site_id = $2 returning id`, [c.id, entrada.siteId]);

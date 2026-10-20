@@ -93,6 +93,15 @@ export async function receberSubmissao(db: Queryable, site: SiteParaFormulario, 
       conflito = { email: porEmail.contact_id, phone: porPhone.contact_id };
     } else if (porEmail || porPhone) {
       contactId = (porEmail ?? porPhone)!.contact_id;
+      // Trava a linha e confere que não foi anonimizado entre a busca da identidade e agora
+      // (corrida com a exclusão). Anonimizado = identificador esquecido: contato novo.
+      const vivo = await db.one('select 1 from contacts where id = $1 and anonymized_at is null for update', [contactId]);
+      if (!vivo) {
+        const c = await db.one<{ id: string }>('insert into contacts (account_id, site_id, name, first_real_at, last_real_at) values ($1, $2, $3, $4, $4) returning id', [site.accountId, site.id, campos.name ?? null, quando]);
+        contactId = c!.id;
+        novoLead = true;
+        await db.query('delete from contact_identities where site_id = $1 and ((kind = \'email\' and value = $2) or (kind = \'phone\' and value = $3))', [site.id, ids.email, ids.phone]);
+      }
     } else {
       const c = await db.one<{ id: string }>('insert into contacts (account_id, site_id, name, first_real_at, last_real_at) values ($1, $2, $3, $4, $4) returning id', [site.accountId, site.id, campos.name ?? null, quando]);
       contactId = c!.id;

@@ -73,8 +73,9 @@ export async function resolverConflito(fd: FormData): Promise<void> {
       // Mescla explícita e auditada: identidades e submissões de B passam para A; B é marcado como removido.
       await db.query('update contact_identities set contact_id = $1 where contact_id = $2', [k.email_contact_id, k.phone_contact_id]);
       await db.query('update submissions set contact_id = $1 where contact_id = $2', [k.email_contact_id, k.phone_contact_id]);
-      await db.query('update contacts a set first_real_at = least(a.first_real_at, b.first_real_at), last_real_at = greatest(a.last_real_at, b.last_real_at) from contacts b where a.id = $1 and b.id = $2', [k.email_contact_id, k.phone_contact_id]);
-      await db.query('update contacts set deleted_at = now() where id = $1', [k.phone_contact_id]);
+      // O nome de B vai para A (se A não tiver) e SAI de B: senão a exclusão de A deixaria o nome de B no banco.
+      await db.query('update contacts a set name = coalesce(a.name, b.name), first_real_at = least(a.first_real_at, b.first_real_at), last_real_at = greatest(a.last_real_at, b.last_real_at) from contacts b where a.id = $1 and b.id = $2', [k.email_contact_id, k.phone_contact_id]);
+      await db.query('update contacts set name = null, deleted_at = now(), anonymized_at = now(), deletion_reason = \'mesclado\' where id = $1', [k.phone_contact_id]);
     }
     await db.query('update contact_conflicts set resolved_at = now(), resolution = $2 where id = $1', [id, decisao]);
     await auditar(db, { accountId: u.accountId, userId: u.userId, acao: 'conflito.resolver', alvoTipo: 'contact_conflict', alvoId: id, detalhes: { decisao } });

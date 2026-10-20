@@ -13,7 +13,7 @@
  */
 import type { ConfigDeEmail } from '@/modules/notifications/provedor';
 
-export type PedidoDeEmail = { to: string; subject: string; text: string; alertId: string };
+export type PedidoDeEmail = { to: string; subject: string; text: string; alertId: string; /** id da entrega: chave de idempotência para o provedor deduplicar um reenvio. */ deliveryId?: string };
 export type ResultadoDoEnvio = { ok: true; id?: string } | { ok: false; erro: string; transitorio: boolean };
 export type Enviador = (p: PedidoDeEmail) => Promise<ResultadoDoEnvio>;
 
@@ -80,7 +80,7 @@ export function criarEnviador(cfg: ConfigDeEmail, o: OpcoesDoAdaptador = {}): En
     case 'resend':
       return async (p) =>
         interpretar(
-          await postJson('https://api.resend.com/emails', { authorization: `Bearer ${cfg.apiKey}` }, { from: cfg.from, to: [p.to], subject: p.subject, text: p.text }, o),
+          await postJson('https://api.resend.com/emails', { authorization: `Bearer ${cfg.apiKey}`, ...(p.deliveryId ? { 'idempotency-key': p.deliveryId } : {}) }, { from: cfg.from, to: [p.to], subject: p.subject, text: p.text }, o),
           ['id'],
         );
     case 'postmark':
@@ -91,7 +91,7 @@ export function criarEnviador(cfg: ConfigDeEmail, o: OpcoesDoAdaptador = {}): En
         );
     case 'webhook':
       return async (p) =>
-        interpretar(await postJson(cfg.webhookUrl ?? '', cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}, { to: p.to, subject: p.subject, text: p.text, alertId: p.alertId, from: cfg.from }, o), ['id', 'messageId']);
+        interpretar(await postJson(cfg.webhookUrl ?? '', cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}, { to: p.to, subject: p.subject, text: p.text, alertId: p.alertId, deliveryId: p.deliveryId, from: cfg.from }, o), ['id', 'messageId']);
     case 'log': {
       const log = o.log ?? ((l: string) => console.log(l));
       return async (p) => {

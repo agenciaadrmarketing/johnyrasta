@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { exigirSessao } from '@/modules/accounts/contexto';
 import { auditar } from '@/modules/accounts/auditoria';
 import { comConta } from '@/shared/db';
-import { analisarDestinatarios, MAXIMO_DESTINATARIOS, TIPOS_DE_ALERTA } from '@/modules/notifications/regras';
+import { analisarDestinatarios, MAXIMO_DESTINATARIOS, TIPOS_OFERECIDOS } from '@/modules/notifications/regras';
 import { lerConfigDeEmail } from '@/modules/notifications/provedor';
 import type { EstadoFormulario } from '@/shared/ui/Formulario';
 
@@ -34,7 +34,7 @@ export async function salvarNotificacoes(_: EstadoFormulario, fd: FormData): Pro
     const msg = 'Informe ao menos um destinatário para ligar o e-mail.';
     return { erro: msg, campos: { destinatarios: msg } };
   }
-  const kinds = TIPOS_DE_ALERTA.filter((k) => fd.get(`tipo_${k}`) === '1');
+  const kinds = TIPOS_OFERECIDOS.filter((k) => fd.get(`tipo_${k}`) === '1');
   if (ligar && kinds.length === 0) return { erro: 'Escolha ao menos um tipo de alerta para receber.' };
 
   await comConta(u.accountId, async (db) => {

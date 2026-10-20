@@ -170,14 +170,17 @@ export function RelatorioDeSite({ relatorio: r, comTitulo = false }: { relatorio
 
       {/* ── Velocidade ── */}
       <Painel kicker="velocidade" titulo="Última medição por página e dispositivo" subtitulo="Mobile e desktop são séries distintas. Não existe 'nota do site'.">
-        {!v.configurado ? (
-          <EstadoVazio tom="aguardando" kicker="aguardando configuração" icone="tendencia" titulo="PageSpeed não configurado" explicacao={v.urlsEscolhidas ? `${v.urlsEscolhidas} URL(s) escolhida(s), mas sem a chave do Google nada é medido.` : 'Sem chave do Google e sem URL escolhida não há medição a relatar.'} />
-        ) : v.urlsEscolhidas === 0 ? (
-          <EstadoVazio tom="configurar" kicker="decisão pendente" icone="tendencia" titulo="Nenhuma URL escolhida para medir" explicacao="Escolha até 3 páginas na aba Velocidade." />
-        ) : v.medicoes.length === 0 ? (
-          <EstadoVazio tom="aguardando" kicker="aguardando primeira medição" icone="relogio" titulo="Sem medição ainda" explicacao={`${v.urlsEscolhidas} URL(s) na agenda diária do worker.`} />
+        {v.medicoes.length === 0 ? (
+          !v.configurado ? (
+            <EstadoVazio tom="aguardando" kicker="aguardando configuração" icone="tendencia" titulo="PageSpeed não configurado" explicacao={v.urlsEscolhidas ? `${v.urlsEscolhidas} URL(s) escolhida(s), mas sem a chave do Google nada é medido.` : 'Sem chave do Google e sem URL escolhida não há medição a relatar.'} />
+          ) : v.urlsEscolhidas === 0 ? (
+            <EstadoVazio tom="configurar" kicker="decisão pendente" icone="tendencia" titulo="Nenhuma URL escolhida para medir" explicacao="Escolha até 3 páginas na aba Velocidade." />
+          ) : (
+            <EstadoVazio tom="aguardando" kicker="aguardando primeira medição" icone="relogio" titulo="Sem medição ainda" explicacao={`${v.urlsEscolhidas} URL(s) na agenda diária do worker.`} />
+          )
         ) : (
           <>
+            {!v.configurado && <Aviso tom="warn">A chave do PageSpeed não está configurada na aplicação: as medições abaixo já existiam, mas novas medições dependem da chave.</Aviso>}
             {v.possivelRegressao && <Aviso tom="warn">Possível regressão: uma série caiu 10 pontos ou mais em relação à medição anterior. É indicação, não alerta — confirme com nova medição.</Aviso>}
             <div style={{ marginTop: v.possivelRegressao ? 'var(--esp-3)' : 0 }}>
               <Tabela cabecalhos={['Página', 'Disp.', 'Medido em', 'Estado', 'Perf.', 'Acess.', 'Práticas', 'SEO', 'LCP', 'CLS', 'TBT']} minWidth={760}>
@@ -360,7 +363,7 @@ export function RelatorioDeSite({ relatorio: r, comTitulo = false }: { relatorio
 
       {/* ── Horários ── */}
       <Painel kicker="horários" titulo="Horas com mais ações" subtitulo={`Cliques e contatos por hora de ocorrência, no fuso ${fuso}. Contagens, não taxas.`}>
-        {semEventosReais || h.totalAcoes === 0 ? (
+        {h.totalAcoes === 0 ? (
           <EstadoVazio icone="relogio" titulo="Sem ações no período" explicacao="Horários aparecem quando houver cliques ou contatos." />
         ) : (
           <>

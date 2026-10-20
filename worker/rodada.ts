@@ -159,6 +159,8 @@ export async function gravar(pool: Pool, m: MonitorReivindicado, r: ResultadoDaC
 export async function retencao(pool: Pool): Promise<{ checks: number; events: number; runs: number }> {
   const c = await pool.query(`delete from checks where checked_at < now() - interval '30 days'`);
   const e = await pool.query(`delete from events where occurred_at < now() - interval '90 days'`);
+  // Sessões acompanham os eventos: sem isso, períodos antigos mostrariam "0 sessões" ao lado de origens com sessões.
+  await pool.query(`delete from sessions where last_seen_at < now() - interval '90 days' and not exists (select 1 from events x where x.session_id = sessions.id) and not exists (select 1 from submissions b where b.session_id = sessions.id)`);
   const r = await pool.query(`delete from performance_runs where measured_at < now() - interval '12 months'`);
   return { checks: c.rowCount ?? 0, events: e.rowCount ?? 0, runs: r.rowCount ?? 0 };
 }

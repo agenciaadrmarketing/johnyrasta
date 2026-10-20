@@ -7,6 +7,7 @@ import { historicoDeAlertas, incidentesDoSite, resumoDeChecagens, ultimasChecage
 import { definirManutencao, pausarOuRetomar, verificarAgora } from '@/modules/monitoring/acoes';
 import { emailLigadoParaOSite, preferenciasDeNotificacao } from '@/modules/notifications/consultas';
 import { alternarEmailDoSite } from '@/modules/notifications/acoes';
+import { lerConfigDeEmail } from '@/modules/notifications/provedor';
 import { Painel, Aviso } from '@/shared/ui/Painel';
 import { SeloEstado } from '@/shared/ui/SeloEstado';
 import { EstadoVazio } from '@/shared/ui/EstadoVazio';
@@ -264,7 +265,9 @@ export default async function PaginaDisponibilidade({ params }: { params: Promis
           <dd><SeloEstado texto={emailDoSite ? 'E-mail ligado' : 'E-mail desligado'} tom={emailDoSite ? 'ok' : 'soft'} /></dd>
           <dt>Na conta</dt>
           <dd style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--esp-2)', alignItems: 'center' }}>
-            {prefsEmail.emailEnabled ? (
+            {prefsEmail.emailEnabled && !lerConfigDeEmail(process.env).ativo ? (
+              <SeloEstado texto="Preferência ligada, sem provedor: nada é enviado até configurar EMAIL_PROVIDER" tom="warn" />
+            ) : prefsEmail.emailEnabled ? (
               <SeloEstado texto={`Ligado · ${prefsEmail.recipients.length} ${prefsEmail.recipients.length === 1 ? 'destinatário' : 'destinatários'}`} tom="ok" />
             ) : (
               <SeloEstado texto="Desligado: nada é enviado, mesmo com este site ligado" tom="soft" />

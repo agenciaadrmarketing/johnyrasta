@@ -116,7 +116,7 @@ export function montarMensagem(a: AlertaParaMensagem): Mensagem {
       if (primeira) horarios.push(`Primeira falha observada: ${primeira}.`);
       if (confirmada) horarios.push(`Confirmada na checagem de ${confirmada}.`);
       fazer =
-        'Abra o endereço no navegador e confira hospedagem, domínio e certificado. Se for manutenção planejada, registre uma janela de manutenção na central: as checagens continuam e os alertas ficam suprimidos. Quando o site voltar a responder, você recebe um aviso de recuperação.';
+        'Abra o endereço no navegador e confira hospedagem, domínio e certificado. Se for manutenção planejada, registre uma janela de manutenção na central: as checagens continuam e os alertas ficam suprimidos. Quando o site voltar a responder, a recuperação fica registrada na central (aba Disponibilidade e Atenção).';
       break;
     }
     case 'incidente_recuperado': {
@@ -134,7 +134,7 @@ export function montarMensagem(a: AlertaParaMensagem): Mensagem {
       const vence = quando(d.expiresAt, a.fuso);
       const faixa = numero(d.faixaDias);
       aconteceu = `O certificado TLS de ${alvo} vence${vence ? ` em ${vence}` : ' em breve'}${faixa !== null ? ` (${faixa} dias ou menos)` : ''}. Depois dessa data o navegador dos visitantes mostra aviso de segurança.`;
-      fazer = 'Renove o certificado ou confira a renovação automática da hospedagem antes do vencimento. A próxima checagem lê a nova data e encerra este aviso.';
+      fazer = 'Renove o certificado ou confira a renovação automática da hospedagem antes do vencimento. Depois de renovar, a próxima checagem registra a nova data; marque este aviso como resolvido em Atenção.';
       break;
     }
     case 'tls_falha': {

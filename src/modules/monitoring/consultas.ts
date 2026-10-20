@@ -83,6 +83,19 @@ export async function incidentesDoSite(accountId: string, siteId: string, limite
   );
 }
 
+/** Incidentes que TOCAM o período (recorte no SQL, para o limite não esconder os antigos). */
+export async function incidentesNoIntervalo(accountId: string, siteId: string, de: Date, ate: Date, limite = 500): Promise<Incidente[]> {
+  return comConta(accountId, (db) =>
+    db.query<Incidente>(
+      `select id, first_failure_at as "firstFailureAt", confirmed_at as "confirmedAt", recovered_at as "recoveredAt",
+              outcome, cause_category as "causeCategory", cause_detail as "causeDetail", failed_checks as "failedChecks"
+         from incidents where site_id = $1 and first_failure_at <= $3 and (recovered_at is null or recovered_at >= $2)
+        order by first_failure_at desc limit $4`,
+      [siteId, de, ate, limite],
+    ),
+  );
+}
+
 export type ResumoDeChecagens = {
   janelaHoras: number;
   amostras: number;

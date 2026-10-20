@@ -105,7 +105,7 @@ export async function origens(accountId: string, siteId: string, p: Periodo): Pr
   return comConta(accountId, (db) =>
     db.query<Origem>(
       `select s.source, s.medium, count(distinct s.id)::int as sessoes,
-              (select count(*)::int from submissions b where b.session_id = any(array_agg(s.id)) and not b.is_test) as contatos
+              (select count(*)::int from submissions b where b.session_id = any(array_agg(s.id)) and not b.is_test and b.receipt_status <> 'tentativa' and b.occurred_at between $2 and $3) as contatos
          from sessions s where s.site_id = $1 and not s.is_test and s.started_at between $2 and $3
         group by s.source, s.medium order by sessoes desc limit 20`,
       [siteId, p.de, p.ate],

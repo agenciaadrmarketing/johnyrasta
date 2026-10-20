@@ -1,6 +1,6 @@
 import 'server-only';
 import { buscarCliente, buscarSite, listarSites, type Cliente, type SiteComSituacao } from '@/modules/portfolio/consultas';
-import { incidentesDoSite, resumoDeChecagens, type Incidente, type ResumoDeChecagens } from '@/modules/monitoring/consultas';
+import { incidentesNoIntervalo, resumoDeChecagens, type Incidente, type ResumoDeChecagens } from '@/modules/monitoring/consultas';
 import { ultimasMedicoes, ultimoCrux, urlsDoSite, type Crux, type Medicao } from '@/modules/performance/consultas';
 import { botoes, origens, porHora, resumoDeEventos, type Horario, type LinhaDeBotao, type Origem, type Periodo, type ResumoDeEventos } from '@/modules/analytics/consultas';
 import { listarSubmissoes, type SubmissaoResumo } from '@/modules/contacts/consultas';
@@ -87,7 +87,7 @@ async function montarRelatorioDoSite(accountId: string, site: SiteComSituacao, p
 
   // Em série, como as abas fazem: cada chamada é uma transação com conexão
   // própria, e dez ao mesmo tempo disputariam o pool da central.
-  const incidentes: Incidente[] = temMonitor ? await incidentesDoSite(accountId, site.id, LIMITE_DE_INCIDENTES) : [];
+  const incidentes: Incidente[] = temMonitor ? await incidentesNoIntervalo(accountId, site.id, periodo.de, periodo.ate, LIMITE_DE_INCIDENTES) : [];
   const checagens: ResumoDeChecagens | null = temMonitor ? await resumoDeChecagens(accountId, site.id, periodo.dias * 24) : null;
   const urls = await urlsDoSite(accountId, site.id);
   const medicoes = await ultimasMedicoes(accountId, site.id);
@@ -166,5 +166,8 @@ export async function relatorioDoCliente(accountId: string, userId: string, clie
 /** Sites ativos de um cliente, para a tela de seleção decidir o fuso de referência. */
 export async function fusosDoCliente(accountId: string, userId: string, clienteId: string): Promise<string[]> {
   const sites = await listarSites(accountId, userId, { clienteId });
-  return [...new Set(sites.filter((s) => s.archivedAt === null).map((s) => s.timezone))];
+  // Ordem ESTÁVEL (por nome): `listarSites` ordena por prioridade de situação, e o fuso de
+  // referência do período não pode mudar conforme qual site está em incidente hoje.
+  const ativos = sites.filter((s) => s.archivedAt === null).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  return [...new Set(ativos.map((s) => s.timezone))];
 }

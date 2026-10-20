@@ -145,8 +145,8 @@ A Fase 5 foi construída em quatro frentes paralelas (relatórios, notificaçõe
 ### D41. Corte temporal pelas preferências
 Só alertas criados DEPOIS da última gravação das preferências (`notification_settings.updated_at`) e ainda no estado `aberto` são enfileirados. Ligar o e-mail ou trocar destinatários nunca despeja histórico antigo; o que já foi resolvido não vira e-mail. Consequência registrada: `verificacao_atrasada`, que o worker grava já resolvido (D20), não sai por e-mail; continua na lista por completude.
 
-### D42. Sem provedor, nada é enfileirado
-Não é só "não enviado": sem `EMAIL_PROVIDER` o outbox não cria entregas, então configurar o provedor depois não dispara uma fila acumulada. A preferência pode ser salva antes e a tela diz literalmente que nada será enviado até configurar o provedor.
+### D42. Sem provedor, o alerta fica registrado como descartado
+Sem `EMAIL_PROVIDER` o outbox cria as entregas já como `descartado` (com o motivo em `last_error`), para que ligar o provedor depois não despeje uma fila acumulada: a unicidade alerta/canal/destinatário cobre o alerta. A preferência pode ser salva antes e a tela diz que nada será enviado até configurar o provedor. (Substitui a versão original, "não enfileira nada", que deixava o alerta elegível quando o provedor fosse ligado.)
 
 ### D43. Dois processos, dois ambientes, os dois na tela
 Configurações mostra o que a aplicação lê de `EMAIL_PROVIDER` e o que o worker informou no heartbeat (provedor, pendentes, falhas em 24 h), com aviso quando divergem. Quem envia é o worker.
@@ -195,7 +195,7 @@ Identidades removidas, nome nulo, `fields = {}` nos envios do contato; `occurred
 Novo envio com o mesmo e-mail ou telefone cria contato novo com `is_new_lead = true`. Lembrar o identificador para dizer "é a mesma pessoa" exigiria guardar o próprio dado que acabou de ser apagado.
 
 ### D57. O worker anonimiza sem conseguir ler dado pessoal
-Grants por coluna: `select` em `contacts` sem `name`, em `contact_identities` sem `value`; `update` só nas colunas da anonimização. Observação registrada: desde a 0005 o worker já tinha `select` em `submissions` (com `fields`) para o alerta de coleta; não foi alterado nesta fase.
+Grants por coluna: `select` em `contacts` sem `name`, em `contact_identities` sem `value`; `update` só nas colunas da anonimização. Corrigido na migração 0008: o worker tinha `select` em `submissions` inteira (incluindo `fields`, com dado pessoal); agora só lê `id, account_id, site_id, contact_id, session_id` e atualiza `fields` (anonimização). A matriz de permissões testa que `select *` falha.
 
 ### D58. A central só atualiza colunas específicas de envios e identidades
 `update` por coluna em `submissions (contact_id, fields)` e `contact_identities (contact_id)`, mais `delete` em identidades. `receipt_status` continua fora do alcance da central no banco: "destino confirmado" só nasce do webhook (reforça D33). Defeito encontrado e corrigido no nível do grant: a mesclagem de conflitos da Fase 4 fazia `update` sem ter o grant e falhava.
@@ -240,3 +240,21 @@ O `fetch` do Node usado pelo worker não lê `HTTP(S)_PROXY`: ambiente com proxy
 
 ### D71. Guia de instalação copia os trechos da aba
 `docs/INSTALACAO-NO-SITE.md` reproduz os trechos exatos da aba Instalação e de `public/c.v1.js`, sem inventar atributos; documenta `window.jw('consent', false)` como retirada de consentimento, comportamento que já existia no coletor.
+
+### D72. Idempotência do envio de e-mail
+Cada entrega manda `deliveryId` ao adaptador (header `idempotency-key` no Resend; campo no webhook). Se o e-mail saiu mas o `update ... 'enviado'` falha, há uma segunda tentativa; mesmo assim a janela residual existe (at-least-once) e fica documentada.
+
+### D73. Filtros do outbox no SQL
+Tipo fora da lista, site desligado e site arquivado são filtrados na consulta, não só em TypeScript, para que alertas que nunca serão publicados não ocupem o `limit 200` e travem a fila.
+
+### D74. Tipos oferecidos nas preferências
+`TIPOS_OFERECIDOS` omite `verificacao_atrasada` (o worker o grava já resolvido, D20): não se oferece o que nunca sairá. Contagens de pendentes/falhas na tela são por conta (`comConta`), não o total global do heartbeat.
+
+### D75. Retenção de sessões e mesclagem de contatos
+A retenção apaga também sessões com mais de 90 dias sem eventos nem envios (o worker ganhou `delete` em `sessions`). Ao mesclar "mesma pessoa", o nome de B passa para A (se A não tiver) e B fica anonimizado (`deletion_reason = 'mesclado'`); exclusão por retenção reavalia o prazo dentro da transação, e a recepção não reaproveita contato anonimizado na corrida.
+
+### D76. Relatório: incidentes e fuso
+Incidentes do período vêm de `incidentesNoIntervalo` (recorte no SQL, até 500), não dos 200 mais recentes; o fuso de referência do relatório do cliente é estável (ordem por nome). Velocidade mostra medições existentes mesmo sem chave configurada, com aviso.
+
+### D77. Revisão adversarial da Fase 5 foi parcial
+Os agentes de revisão caíram por limite de gasto; os achados de privilégios, outbox, retenção e relatórios foram verificados e corrigidos manualmente. Operação e interface não tiveram revisão adversarial independente. Pendente: `verificar-restauracao.ts` não compara grants por coluna.

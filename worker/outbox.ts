@@ -9,7 +9,8 @@
  *     caixa de entrada, mesmo com dez rodadas ou dois workers.
  * Abertura e recuperação são alertas distintos: cada um tem a sua entrega.
  *
- * Sem provedor configurado (`enviar` nulo) a rodada não faz nada: nenhuma
+ * Sem provedor configurado (`enviar` nulo) nada é enviado; os alertas elegíveis são
+ * registrados como `descartado` (D42), para ligar o provedor depois não despejar o acúmulo. Antes: nenhuma
  * entrega é criada, para que ligar o provedor depois não despeje histórico.
  */
 import type { Pool } from 'pg';
@@ -39,7 +40,7 @@ const RESERVA_MS = 10 * 60_000;
  * das preferências da conta, que ainda não têm entrega para algum
  * destinatário. A decisão final é de `devePublicar` (pura, testada em unidade).
  */
-export async function enfileirar(pool: Pool, agora: Date): Promise<number> {
+export async function enfileirar(pool: Pool, agora: Date, estado: 'pendente' | 'descartado' = 'pendente'): Promise<number> {
   const r = await pool.query<{
     id: string; account_id: string; site_id: string | null; kind: string; site_visivel: string | null;
     email_enabled: boolean; email_recipients: string[]; kinds: string[]; site_email_enabled: boolean | null;
@@ -54,6 +55,11 @@ export async function enfileirar(pool: Pool, agora: Date): Promise<number> {
         and ns.email_enabled
         and a.created_at >= ns.updated_at
         and a.created_at <= $1
+        -- Filtros no SQL (não só em TypeScript): alertas que nunca serão publicados
+        -- não podem ocupar a janela do limit e travar a fila de todas as contas.
+        and a.kind = any(ns.kinds)
+        and coalesce(sp.email_enabled, true)
+        and (a.site_id is null or s.id is not null)
         and exists (
           select 1 from unnest(ns.email_recipients) r
            where not exists (select 1 from alert_deliveries d where d.alert_id = a.id and d.channel = 'email' and d.recipient = r)
@@ -73,10 +79,11 @@ export async function enfileirar(pool: Pool, agora: Date): Promise<number> {
     );
     if (!publicar) continue;
     const ins = await pool.query(
-      `insert into alert_deliveries (account_id, alert_id, channel, recipient, next_attempt_at, created_at, updated_at)
-       select $1, $2, 'email', r, $3, $3, $3 from unnest($4::text[]) r
+      `insert into alert_deliveries (account_id, alert_id, channel, recipient, next_attempt_at, created_at, updated_at, state, last_error)
+       select $1, $2, 'email', r, $3, $3, $3, $5, case when $5 = 'descartado' then 'sem provedor de e-mail ativo quando o alerta foi gerado' end
+         from unnest($4::text[]) r
        on conflict (alert_id, channel, recipient) do nothing`,
-      [a.account_id, a.id, agora, a.email_recipients],
+      [a.account_id, a.id, agora, a.email_recipients, estado],
     );
     n += ins.rowCount ?? 0;
   }
@@ -138,15 +145,24 @@ async function entregarUma(pool: Pool, e: EntregaReivindicada, o: OpcoesOutbox, 
   });
   let r: Awaited<ReturnType<Enviador>>;
   try {
-    r = await enviar({ to: e.recipient, subject: msg.assunto, text: msg.corpo, alertId: e.alert_id });
+    r = await enviar({ to: e.recipient, subject: msg.assunto, text: msg.corpo, alertId: e.alert_id, deliveryId: e.id });
   } catch (err) {
     r = { ok: false, erro: `adaptador lançou: ${err instanceof Error ? err.message : String(err)}`, transitorio: true };
   }
   if (r.ok) {
-    await pool.query(
+    // O e-mail JÁ saiu. Se o banco falhar agora, tenta de novo antes de desistir; e, se
+    // ainda assim falhar, a reserva expira e a entrega pode repetir — por isso o
+    // adaptador manda `deliveryId` como chave de idempotência ao provedor.
+    const gravar = () => pool.query(
       `update alert_deliveries set state = 'enviado', sent_at = $2, provider = $3, provider_message_id = $4, last_error = null, updated_at = $2 where id = $1`,
       [e.id, agora, provedor, r.id ?? null],
     );
+    try {
+      await gravar();
+    } catch {
+      await new Promise((res) => setTimeout(res, 500));
+      await gravar();
+    }
     return 'enviada';
   }
   const erro = r.erro.slice(0, 300);
@@ -163,8 +179,14 @@ async function entregarUma(pool: Pool, e: EntregaReivindicada, o: OpcoesOutbox, 
 export async function rodadaOutbox(pool: Pool, o: OpcoesOutbox): Promise<ResumoOutbox> {
   const resumo: ResumoOutbox = { enfileiradas: 0, reivindicadas: 0, enviadas: 0, reagendadas: 0, falhas: 0, descartadas: 0 };
   const enviar = o.enviar;
-  if (!enviar) return resumo;
   const agora = o.agora ?? (() => new Date());
+  if (!enviar) {
+    // Sem provedor ativo nada sai — mas os alertas deste período ficam REGISTRADOS
+    // como descartados. Assim, ligar o provedor depois nunca despeja na caixa de
+    // entrada um acúmulo de alertas antigos (D42).
+    resumo.descartadas = await enfileirar(pool, agora(), 'descartado');
+    return resumo;
+  }
   resumo.enfileiradas = await enfileirar(pool, agora());
   const fila = await reivindicarEntregas(pool, o.limite ?? 20, agora());
   resumo.reivindicadas = fila.length;

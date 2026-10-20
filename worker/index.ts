@@ -37,7 +37,7 @@ if (!url) {
 }
 
 const WORKER_ID = process.env.WORKER_ID ?? `${hostname()}-${process.pid}`;
-const VERSAO = `v2-fase4`;
+const VERSAO = `v2-fase5`;
 const TICK_MS = 5_000;
 const HEARTBEAT_MS = 30_000;
 const RETENCAO_MS = 60 * 60 * 1000;
@@ -127,7 +127,7 @@ async function loop() {
         const fila = await estadoDaFila();
         const outbox = await estadoDoOutbox(pool);
         await heartbeat({
-          fase: 4,
+          fase: 5,
           fila,
           acumulado,
           concorrencia: CONCORRENCIA,

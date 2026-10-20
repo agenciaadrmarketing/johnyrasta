@@ -68,11 +68,31 @@ afterAll(async () => {
 });
 
 describe('outbox de e-mail', () => {
-  it('sem provedor: a rodada não enfileira nem envia nada', async () => {
+  it('sem provedor: nada é enviado; o alerta fica REGISTRADO como descartado (D42) e ligar o provedor depois não o despeja', async () => {
     const alerta = await inserirAlerta('incidente_confirmado', siteA);
-    expect(await rodar(null)).toMatchObject({ enfileiradas: 0, reivindicadas: 0, enviadas: 0 });
-    expect((await entregasDe(alerta)).rowCount).toBe(0);
+    expect(await rodar(null)).toMatchObject({ enfileiradas: 0, reivindicadas: 0, enviadas: 0, descartadas: 2 });
+    const e = await entregasDe(alerta);
+    expect(e.rows.map((x) => x.state)).toEqual(['descartado', 'descartado']);
+    // Provedor ligado depois: nenhuma entrega nova para esse alerta (a unicidade já o cobre).
+    const antes = enviados.length;
+    await rodar();
+    expect(enviados.length).toBe(antes);
+    expect((await entregasDe(alerta)).rows.every((x) => x.state === 'descartado')).toBe(true);
     await admin.query('delete from alerts where id = $1', [alerta]);
+  });
+
+  it('alerta de tipo fora da lista não ocupa a janela do outbox (filtro no SQL)', async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < 205; i++) ids.push(await inserirAlerta('fila_parada', null));
+    const original = await admin.query<{ kinds: string[] }>('select kinds from notification_settings where account_id = $1', [conta.accountId]);
+    await admin.query(`update notification_settings set kinds = array['incidente_confirmado'] where account_id = $1`, [conta.accountId]);
+    const alerta = await inserirAlerta('incidente_confirmado', siteA);
+    const r = await rodar();
+    expect(r.enfileiradas).toBe(2);
+    expect((await entregasDe(alerta)).rowCount).toBe(2);
+    enviados.length = 0;
+    await admin.query('update notification_settings set kinds = $2 where account_id = $1', [conta.accountId, original.rows[0]!.kinds]);
+    await admin.query('delete from alerts where id = any($1)', [[...ids, alerta]]);
   });
 
   it('(i) 1 alerta → 2 entregas enviadas; 10 rodadas depois continuam 2 (não reenvia)', async () => {

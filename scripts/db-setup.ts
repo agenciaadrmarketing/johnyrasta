@@ -52,7 +52,8 @@ async function main() {
         await c.query(`create role "${p.user}" login password '${p.password.replace(/'/g, "''")}'`);
         console.log(`· papel ${p.user} criado`);
       } else {
-        await c.query(`alter role "${p.user}" with password '${p.password.replace(/'/g, "''")}'`);
+        // `with login`: papéis criados NOLOGIN pela migração 0005 ou por db:restaurar precisam virar utilizáveis.
+        await c.query(`alter role "${p.user}" with login password '${p.password.replace(/'/g, "''")}'`);
       }
     }
   } finally {

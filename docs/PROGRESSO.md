@@ -13,7 +13,8 @@
 - **Relatório e tela usam os mesmos cálculos**: `tests/integration/relatorio.spec.ts` compara `relatorioDoSite` campo a campo com as funções das abas para o mesmo período (R01), inclusive fronteira de fuso e exclusão de diagnóstico.
 - **Alerta não se repete indevidamente**: `tests/integration/outbox.spec.ts` (um alerta → uma entrega por destinatário após dez rodadas; retentativa só para transitórios; 4xx definitivo; preferência por site; corte temporal).
 - **Restauração de backup demonstrada**: executada no ambiente local e registrada em `docs/BACKUP.md`; `tests/integration/backup.spec.ts` repete o ciclo contra o banco de teste.
-- **Build e testes passam**: ver o resumo final desta fase abaixo.
+- **Build e testes passam** (20/10/2026, após as correções da revisão): `tsc` e `lint` limpos, `npm run design` sem divergência, vitest 196/196 (20 arquivos), build de produção ok, Playwright 37 passaram (1 ignorado) em desktop e celular. Migrações 0001–0008 aplicadas.
+- **Revisão adversarial parcial** (D77): privilégios, outbox, retenção e relatórios revisados e corrigidos (migração 0008, D42 e D57 revisadas, D72–D76); operação e interface sem revisão independente.
 - **Limitações documentadas**: no relatório (seção própria), em `docs/IMPLANTACAO.md` e em `docs/BACKUP.md`.
 
 ### Depende de credencial ou ambiente

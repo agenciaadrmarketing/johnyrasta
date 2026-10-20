@@ -16,6 +16,13 @@ export const TIPOS_DE_ALERTA = [
 ] as const;
 export type TipoDeAlerta = (typeof TIPOS_DE_ALERTA)[number];
 
+/**
+ * Tipos OFERECIDOS na tela. `verificacao_atrasada` fica de fora: o worker a grava já
+ * resolvida (D20) e o outbox só enfileira alertas abertos, então marcar essa caixa
+ * prometeria um e-mail que nunca sai. O alerta continua na central.
+ */
+export const TIPOS_OFERECIDOS = TIPOS_DE_ALERTA.filter((k) => k !== 'verificacao_atrasada');
+
 export const MAXIMO_DESTINATARIOS = 10;
 
 export function tipoConhecido(v: string): v is TipoDeAlerta {
