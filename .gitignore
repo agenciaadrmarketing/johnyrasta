@@ -12,3 +12,6 @@ test-results/
 
 # Worktrees temporários dos workflows de agentes
 .claude/worktrees/
+
+# Backups locais do banco (npm run db:backup)
+backups/
