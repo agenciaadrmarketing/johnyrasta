@@ -1,6 +1,6 @@
 # Implantação — web, worker e banco em produção
 
-Roteiro específico do piloto: [`docs/ROTEIRO-PILOTO.md`](ROTEIRO-PILOTO.md).
+Roteiro específico do piloto: [`docs/ROTEIRO-PILOTO.md`](ROTEIRO-PILOTO.md) · Compatibilidade de versões: [`docs/COMPATIBILIDADE.md`](COMPATIBILIDADE.md).
 
 Guia para colocar a central no ar com um site piloto e depois a carteira. Complementa `docs/OPERACAO.md` (comandos do dia a dia) e `docs/BACKUP.md` (cópias e restauração). Nada aqui foi executado contra uma hospedagem real; o que está marcado como *exemplo* depende do provedor escolhido.
 
@@ -129,7 +129,7 @@ Um site primeiro: aba Instalação → coletor → teste com token → visita, c
 
 ## Rollback
 
-- **Aplicação**: migrações são aditivas (nunca removem coluna ou tabela em uso pela versão anterior). Voltar a versão da web e do worker não exige mexer no banco. Volte os dois juntos: um worker novo com web velha (ou vice-versa) funciona, mas pode gravar estados que a tela velha não sabe mostrar.
+- **Aplicação**: não há migração "down", e ser aditiva **não** garante que o código anterior funcione (migrações também alteram permissões e restrições). Volte web e worker **juntos** e só para uma versão marcada como verificada em [`COMPATIBILIDADE.md`](COMPATIBILIDADE.md), que registra quais commits foram exercitados contra o schema atual e quais não. Fora dessa lista, o retorno não está validado. Misturar versões de web e worker não é suportado.
 - **Migração que falhou**: cada arquivo roda numa transação; falha = nada aplicado, `schema_migrations` sem a versão. Corrija e rode `db:migrate` de novo.
 - **Banco corrompido ou dado apagado por engano**: restaure o último backup **num banco novo** e troque as URLs (procedimento em `docs/BACKUP.md`, "Promover um banco restaurado"). Nunca por cima do banco em uso.
 - **Papéis**: `db:setup` recria concessões? Não — concessões e políticas vêm das migrações já aplicadas. Se um papel for apagado por engano no cluster, recrie-o com o mesmo nome e rode as concessões das migrações correspondentes à mão, ou restaure um backup num banco novo (o dump carrega as concessões).

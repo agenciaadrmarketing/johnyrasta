@@ -7,7 +7,7 @@ Central de acompanhamento dos sites que o webdesigner entrega: quais estão onli
 - Especificação (contrato do produto): `JohnyWeb_V2_Engenharia_e_Prompt.md` (anexo da conversa de origem).
 - Matriz requisito → decisão → teste: [`docs/MATRIZ.md`](docs/MATRIZ.md)
 - Decisões: [`docs/DECISOES.md`](docs/DECISOES.md) · Progresso: [`docs/PROGRESSO.md`](docs/PROGRESSO.md) · Operação: [`docs/OPERACAO.md`](docs/OPERACAO.md)
-- Implantação: [`docs/IMPLANTACAO.md`](docs/IMPLANTACAO.md) · Checklist pré-produção: [`docs/CHECKLIST-PRE-PRODUCAO.md`](docs/CHECKLIST-PRE-PRODUCAO.md) · Backup: [`docs/BACKUP.md`](docs/BACKUP.md) · Instalação no site do cliente: [`docs/INSTALACAO-NO-SITE.md`](docs/INSTALACAO-NO-SITE.md) · Importar a V1: [`docs/IMPORTAR-V1.md`](docs/IMPORTAR-V1.md) · Validação no piloto (pendente): [`docs/VALIDACAO-PILOTO.md`](docs/VALIDACAO-PILOTO.md) · Testes: [`docs/TESTES.md`](docs/TESTES.md) · Roteiro do piloto: [`docs/ROTEIRO-PILOTO.md`](docs/ROTEIRO-PILOTO.md)
+- Implantação: [`docs/IMPLANTACAO.md`](docs/IMPLANTACAO.md) · Checklist pré-produção: [`docs/CHECKLIST-PRE-PRODUCAO.md`](docs/CHECKLIST-PRE-PRODUCAO.md) · Backup: [`docs/BACKUP.md`](docs/BACKUP.md) · Instalação no site do cliente: [`docs/INSTALACAO-NO-SITE.md`](docs/INSTALACAO-NO-SITE.md) · Importar a V1: [`docs/IMPORTAR-V1.md`](docs/IMPORTAR-V1.md) · Validação no piloto (pendente): [`docs/VALIDACAO-PILOTO.md`](docs/VALIDACAO-PILOTO.md) · Testes: [`docs/TESTES.md`](docs/TESTES.md) · Roteiro do piloto: [`docs/ROTEIRO-PILOTO.md`](docs/ROTEIRO-PILOTO.md) · Compatibilidade: [`docs/COMPATIBILIDADE.md`](docs/COMPATIBILIDADE.md)
 
 ## Estrutura
 ```

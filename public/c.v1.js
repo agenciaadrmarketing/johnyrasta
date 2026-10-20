@@ -70,7 +70,7 @@
     var f = ev.target; if (!f || !f.getAttribute) return;
     if (f.getAttribute('data-track-form') === null) return;
     // session_key: SEMPRE a sessão atual (a chave guardada no campo pode ser de uma sessão que já expirou).
-    // submission_id: ciclo de vida abaixo. Valor posto pelo próprio site nunca é tocado.
+    // submission_id: vazio → gerado e mantido até jw('submitted'). Valor posto pelo próprio site nunca é tocado.
     try {
       var sk = f.querySelector('input[name="session_key"]'); if (sk) sk.value = sessao();
       var si = f.querySelector('input[name="submission_id"]');
@@ -79,16 +79,16 @@
     evento({ type: 'form_attempt', button_id: f.getAttribute('data-track-form') || 'form', action_kind: null });
     enviar();
   }, true);
-  // Fim do envio: o próximo é OUTRO envio. Só o id gerado pelo coletor (marcado em data-jw-auto) é descartado;
-  // enquanto o resultado for incerto (nenhum aviso), o mesmo id é mantido para a tentativa não duplicar.
+  // CONFIRMAÇÃO de sucesso: encerra a tentativa e libera um id novo para o próximo envio. É a ÚNICA forma de
+  // descartar o submission_id gerado pelo coletor (window.jw('submitted', ...)). Só o id gerado aqui (marcado em
+  // data-jw-auto) é descartado; form.reset(), timeout e erro NÃO encerram nada: a tentativa segue pendente e a
+  // retentativa reutiliza o mesmo id, que é o que impede o contato duplicado.
   function concluir(f) {
     try {
       var si = f && f.querySelector && f.querySelector('input[name="submission_id"]');
       if (si && si.getAttribute('data-jw-auto') !== null && si.value === si.getAttribute('data-jw-auto')) { si.value = ''; si.removeAttribute('data-jw-auto'); }
     } catch (e) {}
   }
-  // form.reset() é o que a maioria das integrações AJAX faz ao confirmar o sucesso.
-  d.addEventListener('reset', function (ev) { var f = ev.target; if (f && f.getAttribute && f.getAttribute('data-track-form') !== null) concluir(f); }, true);
   // Rotas SPA.
   var ps = w.history.pushState, rs = w.history.replaceState;
   if (ps) w.history.pushState = function () { ps.apply(this, arguments); setTimeout(pageView, 0); };

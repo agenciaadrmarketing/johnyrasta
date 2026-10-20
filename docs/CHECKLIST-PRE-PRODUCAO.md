@@ -76,7 +76,7 @@ Cada item diz **como conferir**. Marque só o que foi visto, não o que "deveria
 
 ## Rollback ensaiado
 
-- [ ] Procedimento escrito e à mão: voltar a versão anterior da web e do worker **juntos**, sem tocar no banco (migrações são aditivas).
+- [ ] Procedimento escrito e à mão: voltar a versão anterior da web e do worker **juntos**, sem tocar no banco, **apenas** para uma versão marcada como verificada em `docs/COMPATIBILIDADE.md` (migrações não têm "down" e "aditiva" não basta: permissões também mudam).
 - [ ] Ensaio feito em homologação: publicar versão N, aplicar migração, voltar para N−1, confirmar que a aplicação funciona com o schema novo.
 - [ ] Procedimento de promoção de banco restaurado lido e entendido (`docs/BACKUP.md`): restaurar **num banco novo**, trocar as cinco URLs, nunca por cima do banco em uso.
 - [ ] Quem é chamado, por qual canal, quando o monitor externo alertar fora do horário. *Conferir*: nome e telefone escritos, não "a equipe".

@@ -80,7 +80,7 @@ Resumo:
 3. Worker: serviço separado com `npm run worker` supervisionado (restart automático). Variável: `DATABASE_URL_WORKER`, `WORKER_ID`.
 4. Monitor externo da própria central (UptimeRobot, Better Stack ou similar): se web e worker caírem juntos, eles não alertam sobre si mesmos.
 5. Backup do banco com restauração testada antes de ativar para a carteira.
-6. Rollback: migrações são aditivas; voltar a versão anterior da aplicação não exige reverter o banco. Restaurar backup só em caso de corrupção ou perda, sempre num banco novo (`docs/BACKUP.md`).
+6. Rollback: não existe migração "down", e "aditiva" não garante que o código anterior funcione (migrações também mudam permissões). Só se volta a uma versão listada como verificada em `docs/COMPATIBILIDADE.md`, sem reverter o banco. Restaurar backup só em caso de corrupção ou perda, sempre num banco novo (`docs/BACKUP.md`).
 
 ## Rollback da Fase 1
 Não há ambiente antigo tocado. Para desfazer uma instalação local: `npm run db:setup -- --drop` (proibido com `NODE_ENV=production`).

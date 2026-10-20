@@ -35,45 +35,70 @@ async function abrir(page: Page) {
 const enviar = (page: Page) => page.click('button[type=submit]');
 const enviados = (page: Page) => page.evaluate(() => (window as unknown as { enviados: { sid: string; sk: string }[] }).enviados);
 
-test.describe('coletor — formulário AJAX na mesma página', () => {
-  test('A) depois de concluído (form.reset ou jw("submitted")), o próximo envio recebe outro submission_id', async ({ page }) => {
-    await abrir(page);
-    await enviar(page);
-    await page.evaluate(() => (document.getElementById('f') as HTMLFormElement).reset()); // integração confirmou sucesso
-    await enviar(page);
-    await page.evaluate(() => (window as unknown as { jw: (c: string, a: string) => void }).jw('submitted', 'contato')); // aviso explícito
-    await enviar(page);
-    const [a, b, c] = await enviados(page);
-    expect(a!.sid).toMatch(/^sub/);
-    expect(new Set([a!.sid, b!.sid, c!.sid]).size).toBe(3);
-  });
+const jw = (page: Page, cmd: string, arg?: string) => page.evaluate(([c, a]) => (window as unknown as { jw: (c: string, a?: string) => unknown }).jw(c!, a), [cmd, arg]);
+const resetar = (page: Page) => page.evaluate(() => (document.getElementById('f') as HTMLFormElement).reset());
 
-  test('B) tentativa de resultado incerto (nenhum aviso) mantém o submission_id', async ({ page }) => {
+test.describe('coletor — ciclo do submission_id (reset visual ≠ confirmação de recebimento)', () => {
+  test('reset ANTES da resposta e retentativa: mantém o identificador', async ({ page }) => {
     await abrir(page);
     await enviar(page);
-    await enviar(page); // reenvio depois de erro de rede, sem confirmação
+    await resetar(page); // reset visual, sem confirmação de sucesso
+    await enviar(page);  // retentativa
     const [a, b] = await enviados(page);
-    expect(a!.sid).toBeTruthy();
+    expect(a!.sid).toMatch(/^sub/);
     expect(b!.sid).toBe(a!.sid);
   });
 
-  test('B2) submission_id posto pelo próprio site nunca é alterado nem descartado', async ({ page }) => {
+  test('timeout / resultado incerto e retentativa (nenhuma confirmação): mantém o identificador', async ({ page }) => {
+    await abrir(page);
+    await enviar(page);
+    await page.clock.fastForward(60_000); // o tempo passa sem resposta
+    await enviar(page);
+    await enviar(page);
+    const [a, b, c] = await enviados(page);
+    expect([b!.sid, c!.sid]).toEqual([a!.sid, a!.sid]);
+  });
+
+  test('sucesso confirmado (jw("submitted")) e nova submissão: novo identificador; reset depois da confirmação não o devolve', async ({ page }) => {
+    await abrir(page);
+    await enviar(page);
+    await jw(page, 'submitted', 'contato');
+    await resetar(page); // o reset visual vem depois da confirmação, como numa integração correta
+    await enviar(page);
+    await jw(page, 'submitted', 'contato');
+    await enviar(page);
+    const [a, b, c] = await enviados(page);
+    expect(new Set([a!.sid, b!.sid, c!.sid]).size).toBe(3);
+  });
+
+  test('confirmação também aceita o elemento <form>', async ({ page }) => {
+    await abrir(page);
+    await enviar(page);
+    await page.evaluate(() => (window as unknown as { jw: (c: string, a: unknown) => void }).jw('submitted', document.getElementById('f')));
+    await enviar(page);
+    const [a, b] = await enviados(page);
+    expect(b!.sid).not.toBe(a!.sid);
+  });
+
+  test('identificador gerenciado pelo site: o coletor não gera, não troca e não descarta (nem com reset nem com submitted)', async ({ page }) => {
     await abrir(page);
     await page.evaluate(() => { (document.getElementById('f') as HTMLFormElement).submission_id.value = 'id-do-site-0001'; });
     await enviar(page);
-    await page.evaluate(() => (window as unknown as { jw: (c: string, a: string) => void }).jw('submitted', 'contato'));
+    await resetar(page);
     await enviar(page);
-    const [a, b] = await enviados(page);
-    expect([a!.sid, b!.sid]).toEqual(['id-do-site-0001', 'id-do-site-0001']);
+    await jw(page, 'submitted', 'contato');
+    await enviar(page);
+    const ids = (await enviados(page)).map((x) => x.sid);
+    expect(ids).toEqual(['id-do-site-0001', 'id-do-site-0001', 'id-do-site-0001']);
   });
 
-  test('C) depois de 30 min de inatividade o envio usa a sessão atual, não a chave antiga do campo', async ({ page }) => {
+  test('sessão: depois de 30 min de inatividade o envio usa a sessão atual, não a chave antiga do campo', async ({ page }) => {
     await abrir(page);
     await enviar(page);
     await page.clock.fastForward(31 * 60 * 1000);
     await enviar(page);
     const [a, b] = await enviados(page);
-    const atual = await page.evaluate(() => (window as unknown as { jw: (c: string) => string }).jw('session'));
+    const atual = await jw(page, 'session');
     expect(a!.sk).toBeTruthy();
     expect(b!.sk).not.toBe(a!.sk);
     expect(b!.sk).toBe(atual);

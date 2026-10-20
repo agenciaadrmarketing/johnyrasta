@@ -54,7 +54,7 @@ Guarde segredos no cofre da hospedagem, nunca no repositório nem em chat.
 
 ### 3.5 Percurso visita → clique → formulário → contato → relatório
 1. Na aba Instalação, copiar a tag do coletor para o site piloto (sem `?jw_test`). Marcar um botão com `data-track-id` e o formulário com `data-track-form` (modo escolhido na aba).
-2. Abrir o site em janela normal: visita. Clicar no botão. Enviar o formulário com um e-mail de teste. Se o formulário for AJAX e ficar na página, confirmar que o fim do envio é avisado (`form.reset()` ou `jw('submitted', …)`) e que um segundo envio gera **outro** contato/submissão.
+2. Abrir o site em janela normal: visita. Clicar no botão. Enviar o formulário com um e-mail de teste. Se o formulário for AJAX e ficar na página, confirmar que o sucesso é confirmado com `jw('submitted', …)` (antes do `form.reset()`) e que um segundo envio gera **outro** contato/submissão; simular uma falha (desconectar a rede) e confirmar que a retentativa **mantém** o mesmo `submission_id` e não duplica o contato.
 3. **Esperado:** em Botões, 1 clique e 1 contato atribuído (atribuição "último clique"); em Contatos, o contato com a origem do evento; em Resumo, a visita. Nenhum desses números muda com o modo diagnóstico.
 4. Em Relatórios, gerar o relatório do site para o período e comparar com as abas (mesmos números). Imprimir/salvar em PDF e conferir cortes de página.
 

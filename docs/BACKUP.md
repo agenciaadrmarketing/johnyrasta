@@ -19,7 +19,7 @@ O dump contém **dados pessoais** (e-mails e telefones de contatos, e-mails de u
 
 ## Política
 
-- **Frequência**: diária, de madrugada no fuso da operação, e **antes de cada migração** (`npm run db:migrate` em produção começa com um `npm run db:backup`). Migrações são aditivas, mas um backup imediatamente anterior é o que torna o rollback de dados possível se uma migração for aplicada no banco errado.
+- **Frequência**: diária, de madrugada no fuso da operação, e **antes de cada migração** (`npm run db:backup && npm run db:migrate`). `db:migrate` **não** faz esse backup sozinho: rode `npm run db:backup` antes. Migrações não têm "down"; o backup imediatamente anterior é o que torna possível voltar o schema e os dados (perdendo o que foi gravado depois) e proteger contra uma migração aplicada no banco errado.
 - **Retenção**: 30 dias de diários. Guarde também o último backup anterior a cada migração enquanto a versão correspondente da aplicação ainda puder ser reativada. Checagens detalhadas já expiram em 30 dias no próprio banco; eventos em 90; medições em 12 meses (retenção do worker) — o backup não precisa ser mais longo que o dado que protege, salvo exigência contratual do cliente.
 - **Onde guardar**: fora da máquina do banco e fora da máquina da aplicação. Mínimo: um bucket de objeto com versionamento e acesso só para a conta de backup. Se o provedor do banco gerenciado oferece snapshot automático, mantenha-o ligado — é uma camada a mais, não substitui o dump que você sabe restaurar.
 - **Acesso**: a URL administrativa é só dos scripts. O processo de backup roda numa máquina de operação (ou job agendado), nunca dentro do processo web.

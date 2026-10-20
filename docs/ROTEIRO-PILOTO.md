@@ -1,6 +1,6 @@
 # Roteiro para colocar a versão no ar (piloto)
 
-Versão: commit `e39cb70e63d1df3b422ab15eeaa05a2162463fb2` (as quatro correções de estabilização; é o commit da verificação final). Complementa `docs/IMPLANTACAO.md`, `docs/BACKUP.md`, `docs/INSTALACAO-NO-SITE.md` e `docs/VALIDACAO-PILOTO.md`. Nada aqui altera sites de clientes: o snippet só é instalado no site piloto, por quem tem autorização sobre ele.
+Versão: veja os SHAs informados na entrega desta revisão (o commit exato que será implantado deve ser anotado aqui antes do deploy). Complementa `docs/IMPLANTACAO.md`, `docs/BACKUP.md`, `docs/INSTALACAO-NO-SITE.md` e `docs/VALIDACAO-PILOTO.md`. Nada aqui altera sites de clientes: o snippet só é instalado no site piloto, por quem tem autorização sobre ele.
 
 O repositório **não traz** Dockerfile, CI de deploy nem configuração de plataforma (`vercel.json`, `render.yaml` etc.). O roteiro abaixo é por processo, independente de hospedagem.
 
@@ -69,22 +69,24 @@ Fonte de verdade: aba **Instalação** do site (ela já embute `APP_URL` e o `pu
 - Escolha **um** modo de destino na aba (endpoint da central, webhook assinado ou cópia auxiliar). Só o webhook assinado produz "destino confirmado".
 - Consentimento: `data-consent="exigido"` + `window.jw('consent')` quando o visitante aceitar.
 
-**Formulário AJAX que permanece na página** — avise o fim do envio, depois da resposta do servidor:
+**Formulário AJAX que permanece na página** — confirme o sucesso e só então limpe os campos (exemplo completo em `docs/INSTALACAO-NO-SITE.md`):
 ```js
-const r = await fetch(destino, { method: 'POST', body: dados });
-if (r.ok) {
-  form.reset();                         // ou: window.jw('submitted', 'contato')
-}                                       // erro de rede / timeout / resposta incerta: NÃO chame
+if (r.ok && j.ok) {          // recebido do servidor (inclui duplicated: true)
+  window.jw('submitted', 'contato');   // confirma: o próximo envio terá outro submission_id
+  form.reset();                        // reset é só visual; sozinho NÃO encerra a tentativa
+}                                      // timeout, rede, 5xx, 4xx: não confirma
 ```
-Com `data-track-form="contato"`, `form.reset()` e `jw('submitted','contato')` equivalem.
 
-### Conferência do ciclo de `submission_id` (feita sobre o código e os testes)
-- **Timeout ou resultado incerto — preserva.** O identificador é gerado uma vez (marcado em `data-jw-auto`) e só sai quando alguém declara o fim do envio. Reenviar sem `reset()`/`submitted` usa o **mesmo** id, e o servidor devolve `duplicated: true` se o primeiro tiver chegado. Coberto por `tests/e2e/coletor-formulario.spec.ts` (cenário B) e, no servidor, por `estabilizacao.spec.ts` (cenário B, concorrente).
-- **Valor posto pelo seu site — intocado.** Nem regenerado nem descartado (cenário B2).
-- **`form.reset()` antes da confirmação — NÃO preserva, por desenho.** O coletor trata `reset` como "o envio terminou": ele limpa o id gerado, e o próximo envio ganha outro. Se a integração chamar `reset()` de forma otimista (antes da resposta) e depois repetir a tentativa porque a resposta falhou, o reenvio sai com **outro** `submission_id` e, se o primeiro envio tinha chegado, o contato é registrado duas vezes. Regra para a integração do piloto: **só chame `form.reset()`/`jw('submitted')` depois de uma resposta de sucesso** (ou recusa definitiva, como 4xx). Não resete o formulário ao clicar em enviar, nem em `finally`.
-- Limitação aceita: `reset()` chamado pelo botão "Limpar" do próprio visitante também conclui o ciclo. Se o envio estava incerto e a pessoa limpa e preenche de novo, é outro envio mesmo.
-- Se a integração do piloto não conseguir garantir "reset só depois do sucesso", a alternativa segura é o site gerar o próprio `submission_id` (um por tentativa lógica) e preenchê-lo antes de enviar; o coletor então não toca nele.
-- `session_key`: sempre regravado com a sessão vigente no envio; após 30 minutos de inatividade é uma sessão nova (cenário C).
+### Ciclo do `submission_id` (comportamento real, coberto por teste de navegador)
+| Situação | Resultado |
+|---|---|
+| `form.reset()` antes da resposta, depois retentativa | **mantém** o id |
+| Timeout ou resultado incerto, retentativa | **mantém** o id |
+| `jw('submitted')` após sucesso, nova submissão | **novo** id (e `reset()` depois não o devolve) |
+| `submission_id` posto pelo site | nunca tocado; a integração gera um por tentativa lógica |
+| `session_key` | regravado a cada envio com a sessão vigente (nova após 30 min de inatividade) |
+
+Se não houver como chamar `jw('submitted')` na integração do piloto, o segundo envio na mesma página sem recarregar reutiliza o id e será descartado como duplicado; nesse caso o site deve gerar o próprio `submission_id` por tentativa.
 
 ## 6. Percurso completo e registro das evidências
 
@@ -100,7 +102,7 @@ npm run db:restaurar -- --para johnyweb_verificacao   # prova que o arquivo rest
 Guarde o `.dump` fora do servidor (contém dados pessoais e hashes de senha). **`db:migrate` não faz backup sozinho**, ao contrário do que `IMPLANTACAO.md` e `BACKUP.md` dão a entender: rode o backup antes, à mão. Anote o commit em produção (`git rev-parse HEAD`) e a última versão em `schema_migrations`.
 
 Falha na implantação:
-1. **Código**: volte web e worker juntos para o commit anterior (`git checkout <sha-anterior>`, `npm ci`, `npm run build`, reinicie os dois). As migrações são aditivas; a versão anterior roda sobre o schema novo.
+1. **Código**: volte web e worker **juntos** (`git checkout <sha>`, `npm ci`, `npm run build`, reinicie os dois) **somente** para um commit marcado como verificado em [`COMPATIBILIDADE.md`](COMPATIBILIDADE.md) (hoje: `68042a1`, e `c30a982` com ressalvas). Não há migração "down"; ser aditiva não garante que o código antigo funcione sobre o schema novo. Qualquer outro commit: não validado, restaure o backup num banco novo e verifique antes (ver o documento). No primeiro deploy do piloto não existe versão anterior em produção.
 2. **Migração que falhou**: cada arquivo roda em transação; falhou = nada aplicado. Corrija e repita.
 3. **Dado comprometido**: restaure o backup **num banco novo** (`npm run db:restaurar -- --para johnyweb_AAAAMMDD`), rode `db:setup` para reaplicar as senhas dos papéis, confira a verificação estrutural e só então troque as quatro URLs da aplicação. O banco original não é sobrescrito.
 4. Antes de apagar o banco antigo, confirme com o operador e mantenha o backup.
