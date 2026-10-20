@@ -62,6 +62,7 @@ const ASSUNTO: Record<string, string> = {
   verificacao_atrasada: 'verificação ficou atrasada',
   coletor_parado: 'coleta de eventos interrompida',
   fila_parada: 'fila de medições do PageSpeed parada',
+  regressao_pagespeed: 'queda de velocidade confirmada',
 };
 
 function texto(v: unknown): string | null {
@@ -88,6 +89,7 @@ function duracao(ms: number): string {
 export function caminhoNaCentral(kind: string, siteId: string | null): string {
   if (!siteId) return '/atencao';
   if (kind === 'coletor_parado') return `/sites/${siteId}/instalacao`;
+  if (kind === 'regressao_pagespeed') return `/sites/${siteId}/velocidade`;
   return `/sites/${siteId}/disponibilidade`;
 }
 
@@ -162,6 +164,15 @@ export function montarMensagem(a: AlertaParaMensagem): Mensagem {
       const pend = numero(d.pendentes);
       aconteceu = `Há ${pend !== null ? pend : 'algumas'} ${pend === 1 ? 'medição devida' : 'medições devidas'} do PageSpeed há mais de 2 h e nenhuma concluída nesse período.`;
       fazer = 'Confira o log do worker e a cota da chave do PageSpeed no console do Google. Nenhuma nota é inventada enquanto a fila não anda.';
+      break;
+    }
+    case 'regressao_pagespeed': {
+      const base = numero(d.basePerformance);
+      const atual = numero(d.atualPerformance);
+      const disp = d.device === 'desktop' ? 'desktop' : 'celular';
+      const pagina = texto(d.url) ?? alvo;
+      aconteceu = `A nota de performance de ${pagina} (${disp}) caiu${base !== null && atual !== null ? ` de ${base} para ${atual}` : ''} e as duas últimas medições seguidas confirmam a queda de 10 pontos ou mais. A nota do Lighthouse varia entre medições; por isso o alerta só sai depois da confirmação.`;
+      fazer = 'Veja o que mudou no site desde a medição de referência (imagens, scripts novos, plugins) e abra a aba Velocidade para os diagnósticos.';
       break;
     }
     default: {

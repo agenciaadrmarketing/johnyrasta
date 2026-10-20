@@ -8,7 +8,7 @@
  */
 import type { Pool, PoolClient } from 'pg';
 import { randomUUID } from 'node:crypto';
-import { atrasoDeRetentativa, classificarErroDaApi, lerPageSpeed, possivelRegressao, urlDaApi, type Dispositivo } from '@/modules/performance/pagespeed';
+import { atrasoDeRetentativa, classificarErroDaApi, lerPageSpeed, possivelRegressao, regressaoConfirmada, regressaoDesfeita, urlDaApi, type Dispositivo } from '@/modules/performance/pagespeed';
 
 export const LEASE_PAGESPEED_SEGUNDOS = 180;
 
@@ -100,6 +100,43 @@ async function comLease<T>(pool: Pool, job: Job, fn: (c: PoolClient) => Promise<
   }
 }
 
+/**
+ * Depois de gravar uma medição ok: abre o alerta quando a regressão se confirma
+ * (duas medições seguidas ≥10 pontos abaixo da referência) e resolve o alerta
+ * aberto quando a nota volta. Um alerta por episódio (a chave inclui a referência).
+ */
+async function avaliarRegressao(c: PoolClient, job: Job, quando: Date): Promise<void> {
+  const r = await c.query<{ id: string; performance: number | null }>(
+    `select id, performance from performance_runs
+      where monitored_url_id = $1 and device = $2 and status = 'ok' and performance is not null
+      order by measured_at desc, id desc limit 3`,
+    [job.monitoredUrlId, job.device],
+  );
+  const serie = r.rows.map((x) => x.performance);
+  const base = r.rows[2];
+  const atual = serie[0] ?? null;
+  const prefixo = `regressao:${job.monitoredUrlId}:${job.device}:`;
+  if (base && regressaoConfirmada(serie)) {
+    await c.query(
+      `insert into alerts (account_id, site_id, kind, severity, dedupe_key, title, details, created_at)
+       values ($1, $2, 'regressao_pagespeed', 'media', $3, $4, $5, $6) on conflict (account_id, dedupe_key) do nothing`,
+      [job.accountId, job.siteId, `${prefixo}${base.id}`, 'Regressão de velocidade confirmada',
+       JSON.stringify({ url: job.url, device: job.device, basePerformance: base.performance, atualPerformance: atual, anteriorPerformance: serie[1] }), quando],
+    );
+    return;
+  }
+  // Sem confirmação nesta medição: resolve o que estiver aberto e já se desfez.
+  const abertos = await c.query<{ id: string; details: { basePerformance?: number } }>(
+    `select id, details from alerts where account_id = $1 and kind = 'regressao_pagespeed' and state = 'aberto' and dedupe_key like $2`,
+    [job.accountId, `${prefixo}%`],
+  );
+  for (const a of abertos.rows) {
+    if (regressaoDesfeita(atual, a.details.basePerformance ?? null)) {
+      await c.query(`update alerts set state = 'resolvido', resolved_at = $2, resolved_by = 'worker' where id = $1`, [a.id, quando]);
+    }
+  }
+}
+
 export type ResumoPageSpeed = { reivindicados: number; medidos: number; retentativas: number; falhas: number; descartados: number };
 
 export async function rodadaPageSpeed(pool: Pool, o: OpcoesPageSpeed): Promise<ResumoPageSpeed> {
@@ -139,6 +176,7 @@ export async function rodadaPageSpeed(pool: Pool, o: OpcoesPageSpeed): Promise<R
               [job.accountId, job.siteId, cp.scope, cp.identifier, job.device, quando, cp.overall, cp.lcpP75Ms, cp.inpP75Ms, cp.clsP75, JSON.stringify(cp.raw)],
             );
           }
+          if (lab.status === 'ok') await avaliarRegressao(c, job, quando);
           await c.query(`update audit_jobs set state = 'concluido', finished_at = $2, lease_token = null, lease_until = null where id = $1`, [job.id, quando]);
           return 'medido' as const;
         }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { atrasoDeRetentativa, chaveDoTrabalho, classificarErroDaApi, lerPageSpeed, possivelRegressao, urlDaApi } from '@/modules/performance/pagespeed';
+import { atrasoDeRetentativa, chaveDoTrabalho, classificarErroDaApi, lerPageSpeed, possivelRegressao, regressaoConfirmada, regressaoDesfeita, urlDaApi } from '@/modules/performance/pagespeed';
 
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/${n}.json`, 'utf8'));
 
@@ -59,5 +59,20 @@ describe('regras', () => {
     expect(u.searchParams.get('strategy')).toBe('desktop');
     expect(u.searchParams.getAll('category')).toHaveLength(4);
     expect(u.searchParams.get('key')).toBe('K');
+  });
+});
+
+describe('regressão confirmada', () => {
+  it('exige as duas medições mais recentes ≥10 pontos abaixo da referência', () => {
+    expect(regressaoConfirmada([50, 55, 80])).toBe(true);
+    expect(regressaoConfirmada([50, 75, 80])).toBe(false);
+    expect(regressaoConfirmada([75, 50, 80])).toBe(false);
+    expect(regressaoConfirmada([50, 55])).toBe(false);
+    expect(regressaoConfirmada([null, 55, 80])).toBe(false);
+  });
+  it('desfeita quando a nota volta a menos de 10 pontos da referência', () => {
+    expect(regressaoDesfeita(75, 80)).toBe(true);
+    expect(regressaoDesfeita(70, 80)).toBe(false);
+    expect(regressaoDesfeita(null, 80)).toBe(false);
   });
 });

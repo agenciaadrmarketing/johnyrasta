@@ -58,6 +58,7 @@ export const ROTULO_ALERTA: Record<string, string> = {
   tls_falha: 'Falha no certificado TLS',
   coletor_parado: 'Coleta interrompida',
   fila_parada: 'Fila de medições parada',
+  regressao_pagespeed: 'Regressão de velocidade confirmada',
 };
 
 export async function ultimasChecagens(accountId: string, siteId: string, limite = 50): Promise<Checagem[]> {

@@ -13,6 +13,7 @@ export const TIPOS_DE_ALERTA = [
   'verificacao_atrasada',
   'coletor_parado',
   'fila_parada',
+  'regressao_pagespeed',
 ] as const;
 export type TipoDeAlerta = (typeof TIPOS_DE_ALERTA)[number];
 

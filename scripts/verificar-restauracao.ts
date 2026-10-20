@@ -6,7 +6,7 @@
  *
  * Compara, tabela a tabela, a contagem de linhas; as versões em
  * schema_migrations; as políticas RLS (nome, comando, papéis e expressão);
- * as tabelas com RLS ativa/forçada; as concessões aos papéis app_* em tabelas,
+ * as tabelas com RLS ativa/forçada; as concessões aos papéis app_* em tabelas (inclusive por coluna),
  * sequências, funções e schemas; as funções; o número de índices e restrições.
  *
  * Estrutura divergente (migração, política, concessão, tabela ausente) é
@@ -88,6 +88,10 @@ async function inventario(url: string): Promise<Inventario> {
         `select n.nspname || '.' || c.relname || ' → ' || a.grantee::regrole::text || ': ' || a.privilege_type as item
            from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a
           where ${FORA_DO_SISTEMA} and c.relkind in ('r', 'p', 'v', 'm', 'S') and a.grantee::regrole::text like 'app\\_%'
+         union all
+         select n.nspname || '.' || c.relname || '.' || at.attname || ' → ' || a.grantee::regrole::text || ': ' || a.privilege_type || ' (coluna)'
+           from pg_attribute at join pg_class c on c.oid = at.attrelid join pg_namespace n on n.oid = c.relnamespace, aclexplode(at.attacl) a
+          where ${FORA_DO_SISTEMA} and at.attacl is not null and not at.attisdropped and a.grantee::regrole::text like 'app\\_%'
          union all
          select p.oid::regprocedure::text || ' → ' || a.grantee::regrole::text || ': ' || a.privilege_type
            from pg_proc p join pg_namespace n on n.oid = p.pronamespace, aclexplode(p.proacl) a

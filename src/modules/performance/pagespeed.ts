@@ -132,6 +132,24 @@ export function possivelRegressao(atual: number | null, anterior: number | null,
   return anterior - atual >= limiar;
 }
 
+/**
+ * Regressão CONFIRMADA: as duas medições mais recentes (atual e anterior) estão
+ * ao menos `limiar` pontos abaixo da medição de referência que veio antes delas.
+ * Uma única queda isolada nunca basta (a nota do Lighthouse oscila).
+ * `serie` vem da mais nova para a mais antiga: [atual, anterior, referência].
+ */
+export function regressaoConfirmada(serie: readonly (number | null)[], limiar = 10): boolean {
+  const [atual, anterior, base] = serie;
+  if (atual == null || anterior == null || base == null) return false;
+  return base - atual >= limiar && base - anterior >= limiar;
+}
+
+/** A queda se desfez: a medição atual voltou a ficar a menos de `limiar` pontos da referência. */
+export function regressaoDesfeita(atual: number | null, base: number | null, limiar = 10): boolean {
+  if (atual === null || base === null) return false;
+  return base - atual < limiar;
+}
+
 export type CategoriaDeErro = 'sem_chave' | 'cota' | 'timeout' | 'pagina_inacessivel' | 'resposta_parcial' | 'resposta_invalida' | 'bloqueado' | 'desconhecido';
 
 /** Classifica a resposta HTTP da API em estados distintos. Nenhum deles vira nota. */
