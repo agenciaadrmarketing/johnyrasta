@@ -30,6 +30,7 @@ const MATRIZ: Record<string, Partial<Record<Papel, Priv[]>>> = {
   accounts: { app_web: S },
   users: { app_web: S },
   auth_sessions: {}, // só por funções SECURITY DEFINER
+  password_resets: { app_worker: SD }, // web só por funções SECURITY DEFINER; worker apaga vencidos
   clients: { app_web: SIUD },
   sites: { app_web: SIUD, app_worker: S, app_ingest: S, app_forms: S },
   site_favorites: { app_web: SIUD },
@@ -98,7 +99,7 @@ const SEQUENCIAS: Record<string, Partial<Record<Papel, string[]>>> = {
 };
 
 /** Funções SECURITY DEFINER do schema app: só a central executa; PUBLIC nunca. */
-const FUNCOES_DEFINER = ['create_session', 'find_user_for_login', 'find_user_for_session', 'list_sessions', 'password_hash_of', 'revoke_other_sessions', 'revoke_session', 'update_password', 'update_profile'];
+const FUNCOES_DEFINER = ['consume_password_reset', 'create_session', 'find_user_for_login', 'find_user_for_session', 'list_sessions', 'password_hash_of', 'password_reset_valid', 'request_password_reset', 'revoke_other_sessions', 'revoke_session', 'update_password', 'update_profile'];
 const FUNCOES_COMUNS = ['current_account_id', 'touch_updated_at'];
 
 /** Tabelas sem RLS, com o motivo. Qualquer outra sem RLS forçada reprova. */

@@ -161,6 +161,7 @@ export async function retencao(pool: Pool): Promise<{ checks: number; events: nu
   const e = await pool.query(`delete from events where occurred_at < now() - interval '90 days'`);
   // Sessões acompanham os eventos: sem isso, períodos antigos mostrariam "0 sessões" ao lado de origens com sessões.
   await pool.query(`delete from sessions where last_seen_at < now() - interval '90 days' and not exists (select 1 from events x where x.session_id = sessions.id) and not exists (select 1 from submissions b where b.session_id = sessions.id)`);
+  await pool.query(`delete from password_resets where expires_at < now() - interval '1 day'`);
   const r = await pool.query(`delete from performance_runs where measured_at < now() - interval '12 months'`);
   return { checks: c.rowCount ?? 0, events: e.rowCount ?? 0, runs: r.rowCount ?? 0 };
 }

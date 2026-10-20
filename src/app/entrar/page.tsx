@@ -7,16 +7,16 @@ import { FormularioDeLogin } from './formulario';
 
 export const metadata: Metadata = { title: 'Entrar' };
 
-export default async function PaginaEntrar({ searchParams }: { searchParams: Promise<{ destino?: string }> }) {
+export default async function PaginaEntrar({ searchParams }: { searchParams: Promise<{ destino?: string; senha?: string }> }) {
   if (await usuarioDaSessao()) redirect('/sites');
-  const { destino } = await searchParams;
+  const { destino, senha } = await searchParams;
   return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'var(--header-bg)' }}>
       <ChuvaMatrix variante="tela" />
       <div className="veu-de-fundo" aria-hidden="true" />
       <div style={{ width: '100%', maxWidth: 380, position: 'relative', zIndex: 1 }}>
         <Marca />
-        <FormularioDeLogin destino={destino} />
+        <FormularioDeLogin destino={destino} redefinida={senha === 'redefinida'} />
         <p className="mono" style={{ marginTop: 12, textAlign: 'center', fontSize: 'var(--tipo-legenda)', color: 'var(--tx2)' }}>
           JohnyWeb V2 · acesso restrito
         </p>

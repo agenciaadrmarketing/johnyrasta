@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import { entrar } from '@/modules/accounts/acoes';
 import { ESTADO_VAZIO, type EstadoFormulario } from '@/shared/ui/Formulario';
@@ -35,9 +36,9 @@ function IconeOlho({ aberto }: { aberto: boolean }) {
 /**
  * Cartão de vidro com feixes, campos com ícone e botão de revelar a senha —
  * a tela de login da V1, intacta. Sem "lembrar de mim" (a sessão tem uma
- * duração só) e sem "esqueci minha senha" (recuperação exige e-mail, Fase 5).
+ * duração só). "Esqueci minha senha" leva à recuperação por e-mail (Fase 6).
  */
-export function FormularioDeLogin({ destino }: { destino?: string }) {
+export function FormularioDeLogin({ destino, redefinida }: { destino?: string; redefinida?: boolean }) {
   const [estado, acao, pendente] = useActionState<EstadoFormulario, FormData>(entrar, ESTADO_VAZIO);
   const [senhaVisivel, setSenhaVisivel] = useState(false);
 
@@ -78,6 +79,7 @@ export function FormularioDeLogin({ destino }: { destino?: string }) {
             </button>
           </span>
         </label>
+        {redefinida && <p role="status" style={{ fontSize: 'var(--tipo-apoio)', color: 'var(--ok-tx)' }}>Senha redefinida. Entre com a senha nova.</p>}
         {estado.erro && (
           <p role="alert" style={{ fontSize: 'var(--tipo-apoio)', color: 'var(--neg-tx)' }}>
             {estado.erro}
@@ -93,6 +95,7 @@ export function FormularioDeLogin({ destino }: { destino?: string }) {
             'Entrar'
           )}
         </button>
+        <Link href="/recuperar-senha" style={{ textAlign: 'center', fontSize: 'var(--tipo-apoio)' }}>Esqueci minha senha</Link>
       </div>
     </form>
   );
