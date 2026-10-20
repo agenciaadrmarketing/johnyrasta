@@ -1,5 +1,7 @@
 # Implantação — web, worker e banco em produção
 
+Roteiro específico do piloto: [`docs/ROTEIRO-PILOTO.md`](ROTEIRO-PILOTO.md).
+
 Guia para colocar a central no ar com um site piloto e depois a carteira. Complementa `docs/OPERACAO.md` (comandos do dia a dia) e `docs/BACKUP.md` (cópias e restauração). Nada aqui foi executado contra uma hospedagem real; o que está marcado como *exemplo* depende do provedor escolhido.
 
 ## Topologia
@@ -48,7 +50,7 @@ Nomes conforme `.env.example`; valores só no gestor de segredos. Papel de banco
 | `DATABASE_URL_WORKER` (app_worker) | — | obrigatória | — | |
 | `DATABASE_URL_ADMIN` (dono/admin) | — | — | obrigatória | `db:setup`, `db:migrate`, `db:bootstrap`, `db:demo`, `db:backup`, `db:restaurar`. Nunca na web nem no worker |
 | `DATABASE_SSL_CA` | opcional | opcional | — | conteúdo do certificado raiz do provedor; ativa verificação da cadeia |
-| `SESSION_SECRET` | obrigatória (≥ 32 caracteres) | — | — | `openssl rand -base64 48` |
+| `SESSION_SECRET` | não usada pelo código atual | — | — | as sessões são opacas e ficam no banco; ver `docs/ROTEIRO-PILOTO.md` |
 | `APP_URL` | obrigatória | — | — | `https://central.suaagencia.com.br`, sem barra final |
 | `NODE_ENV=production` | obrigatória | recomendada | — | liga CSP, HSTS, cookie `Secure`; proíbe `db:setup -- --drop` e `db:demo` sem `DEMO_MODE=1` |
 | `PAGESPEED_API_KEY` | opcional | opcional | — | sem ela: "não configurado" na tela e nenhuma medição no worker. Defina nos dois ou em nenhum |
@@ -56,7 +58,7 @@ Nomes conforme `.env.example`; valores só no gestor de segredos. Papel de banco
 | `WORKER_ID` | — | opcional (padrão `hostname-pid`) | — | aparece em Configurações |
 | `MONITOR_CONCORRENCIA` | — | opcional (padrão 5) | — | ver dimensionamento |
 | `MONITOR_EXCECOES_DE_REDE` | — | **vazia em produção** | — | IPs privados liberados; o worker avisa no log se houver |
-| `EMAIL_PROVIDER`, `EMAIL_FROM` | opcional | opcional | — | Configurações mostra "configurado" quando `EMAIL_PROVIDER` existe; o envio em si depende do adaptador da frente de notificações |
+| `EMAIL_PROVIDER`, `EMAIL_FROM`, `EMAIL_API_KEY`/`EMAIL_WEBHOOK_URL` | opcional (envia a recuperação de senha) | opcional (envia os alertas) | — | defina nos dois; ver `.env.example` |
 | `CSP_RELATORIO=1` | opcional | — | — | troca a CSP por `Content-Security-Policy-Report-Only` (diagnóstico) |
 | `DEMO_MODE` | nunca em produção | — | nunca em produção | ver checklist |
 | `BACKUP_DIR`, `PG_BIN` | — | — | opcionais | destino dos dumps; diretório dos binários do PostgreSQL |
@@ -76,7 +78,7 @@ Cada papel tem senha própria. As senhas vão **dentro das URLs** (`postgres://a
 npm ci
 npm run db:setup       # cria o database se faltar, cria/atualiza os papéis com as senhas das URLs, aplica migrations/
 ```
-`db:setup` é idempotente. Em atualizações posteriores, `npm run db:backup && npm run db:migrate`.
+`db:setup` é idempotente. Em atualizações posteriores, `npm run db:backup && npm run db:migrate` (o `db:migrate` não faz backup sozinho).
 
 ### 3. Proprietário
 ```bash
@@ -178,7 +180,7 @@ Se o banco estiver numa rede privada, abra uma exceção **só** para `host:port
 - **Rate limit zera a cada reinício** e não é compartilhado — é proteção contra abuso simples, não contra ataque distribuído. Para isso, use o WAF/limite da borda.
 - **CSP** só em produção (`next dev` usa `eval`). `style-src 'unsafe-inline'` é consequência da arquitetura visual; `script-src` com nonce e `'strict-dynamic'`; `connect-src 'self'` — a central não chama API de terceiros a partir do navegador. `/api/*` e `/c.v1.js` ficam fora da CSP de propósito (consumidos por outras origens). Para diagnosticar, `CSP_RELATORIO=1` publica em modo só-relatório.
 - **HSTS com `includeSubDomains`** por dois anos: publique a central num domínio cujos subdomínios todos tenham HTTPS, ou num subdomínio dedicado.
-- **E-mail**: hoje a central só distingue "configurado"/"não configurado" por `EMAIL_PROVIDER`; alertas vivem na tela de Atenção. O envio depende do adaptador da frente de notificações e de um provedor; a saída HTTPS do processo que envia precisa estar liberada (sem proxy obrigatório, ver Requisitos).
+- **E-mail**: o worker envia os alertas por Resend, Postmark ou webhook; a web envia a recuperação de senha. A saída HTTPS dos dois processos para o provedor precisa estar liberada (sem proxy obrigatório, ver Requisitos). O envio real ainda não foi validado (`docs/VALIDACAO-PILOTO.md`).
 - **PageSpeed sem chave** não mede nada e a tela diz isso; nunca há nota inventada.
-- **Sessões**: cookie `Secure` só com `NODE_ENV=production`; 14 dias; revogação imediata no banco. Não há recuperação de senha por e-mail: a troca é feita por quem está logado, e um proprietário sem acesso precisa de outro proprietário ou de `BOOTSTRAP_FORCE=1 npm run db:bootstrap` na máquina de operação.
+- **Sessões**: cookie `Secure` só com `NODE_ENV=production`; 14 dias; revogação imediata no banco. A recuperação de senha por e-mail só funciona com provedor de e-mail real e `APP_URL` na web; sem eles a tela diz o motivo e um proprietário sem acesso precisa de outro proprietário ou de `BOOTSTRAP_FORCE=1 npm run db:bootstrap` na máquina de operação.
 - **Uma região, um banco**: não há réplica de leitura nem failover automático no código; isso é do provedor.
