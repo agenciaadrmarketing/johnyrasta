@@ -1,5 +1,24 @@
 # Progresso — JohnyWeb V2
 
+## Fase 3 — PageSpeed (19/10/2026)
+
+### Implementado e verificado localmente
+- Migração `0004_velocidade.sql`: `monitored_urls` (até 3 por site, dispositivos, frequência), `audit_jobs` (fila genérica com lease e chave única por trabalho ativo), `performance_runs`, `crux_snapshots`; RLS e grants.
+- Worker: agenda diária (idempotente por dia), consumidor com lease, chamada à API v5 com timeout, classificação de erros (cota, timeout, página inacessível, bloqueado, parcial), retentativas com backoff, gravação separada de laboratório e campo, marcação de possível regressão, alerta de fila parada.
+- Central: aba Velocidade (URLs do próprio domínio, mobile/desktop, medir agora com cooldown, última medição por série com notas e LCP/CLS/TBT, CrUX com escopo URL/origem e INP, oportunidades sem soma, histórico), Resumo e Configurações com estado da integração e da fila.
+
+### Aceite da Fase 3
+- **Simulações de 429/timeout não geram nota falsa**: `pagespeed-fila.spec.ts` (P01) contra o Postgres com API substituída — 429 vira retentativa com backoff, nada gravado; depois mede.
+- **Mesma URL em mobile e desktop = duas séries**: P02 na agenda e na gravação.
+- **CrUX sem volume = "dados insuficientes"**: P03 (resposta sem campo não cria snapshot; a tela mostra o estado).
+- **Fila drena sem interface aberta**: consumidor roda no worker; lease retomado após vencimento testado.
+- **Medição real autorizada nos dois dispositivos**: **NÃO executada** — não há chave do PageSpeed neste ambiente. O código chama a API real (`urlDaApi`) e foi exercitado com respostas gravadas no formato da v5. Pendente: informar `PAGESPEED_API_KEY` e autorizar uma URL para validar ao vivo.
+
+### Pendente
+- Validação ao vivo com chave real (depende de credencial).
+- Alerta automático de regressão confirmada (duas medições comparáveis).
+- Retenção de 12 meses de medições (worker apaga; a regra está documentada, o job de retenção entra junto com o de eventos na Fase 4).
+
 ## Fase 2 — Disponibilidade e operação (19/10/2026)
 
 ### Implementado e verificado localmente
@@ -46,7 +65,6 @@
 Veja `docs/OPERACAO.md`. Resumo: `cp .env.example .env.local` → preencher → `npm run db:setup` → `npm run db:bootstrap` → `npm run dev` e, em outro terminal, `npm run worker`.
 
 ### Pendente (por fase)
-- **Fase 3**: PageSpeed (chave, até 3 URLs, mobile/desktop, fila dimensionada, CrUX separado). P01–P03.
 - **Fase 4**: coletor versionado, instalação guiada, eventos de teste isolados, formulários (3 modos), contatos, horários, atribuição, exportação. E01–E04, F01–F04, T01–T03.
 - **Fase 5**: relatório imprimível, CSV, adaptador de e-mail, preferências de alerta, backups/restauração, validação visual final. R01, X01.
 - **Depende de credencial/ambiente**: chave PageSpeed, provedor de e-mail, hospedagem com processo contínuo para o worker, monitor externo independente da própria central.

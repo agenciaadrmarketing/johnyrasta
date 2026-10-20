@@ -1,0 +1,10 @@
+{
+  "id": "https://www.exemplo.com.br/sem-campo",
+  "loadingExperience": { "id": "https://www.exemplo.com.br/sem-campo", "metrics": {} },
+  "lighthouseResult": {
+    "finalUrl": "https://www.exemplo.com.br/sem-campo",
+    "lighthouseVersion": "12.6.0",
+    "categories": { "performance": { "score": 0.55 }, "seo": { "score": 0.8 } },
+    "audits": { "largest-contentful-paint": { "numericValue": 5000 } }
+  }
+}

@@ -20,6 +20,7 @@ import { Pool } from 'pg';
 import { hostname } from 'node:os';
 import { loadEnv } from '../scripts/env';
 import { rodada, retencao } from './rodada';
+import { agendarDiarios, alertaDeFilaParada, rodadaPageSpeed } from './pagespeed';
 
 loadEnv();
 
@@ -30,12 +31,15 @@ if (!url) {
 }
 
 const WORKER_ID = process.env.WORKER_ID ?? `${hostname()}-${process.pid}`;
-const VERSAO = `v2-fase2`;
+const VERSAO = `v2-fase3`;
 const TICK_MS = 5_000;
 const HEARTBEAT_MS = 30_000;
 const RETENCAO_MS = 60 * 60 * 1000;
 const CONCORRENCIA = Number(process.env.MONITOR_CONCORRENCIA ?? 5);
 const EXCECOES = (process.env.MONITOR_EXCECOES_DE_REDE ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+const CHAVE_PAGESPEED = process.env.PAGESPEED_API_KEY || null;
+const CONCORRENCIA_PAGESPEED = Number(process.env.PAGESPEED_CONCORRENCIA ?? 2);
+const AGENDA_MS = 5 * 60 * 1000;
 
 const pool = new Pool({ connectionString: url, max: CONCORRENCIA + 2 });
 
@@ -61,11 +65,14 @@ async function estadoDaFila() {
 let encerrando = false;
 let ultimoHeartbeat = 0;
 let ultimaRetencao = 0;
+let ultimaAgenda = 0;
+let acumuladoPs = { reivindicados: 0, medidos: 0, retentativas: 0, falhas: 0, descartados: 0 };
 let acumulado = { reivindicados: 0, gravados: 0, descartados: 0, erros: 0 };
 
 async function loop() {
   console.log(`[worker] ${WORKER_ID} iniciado. Concorrência ${CONCORRENCIA}. Exceções de rede: ${EXCECOES.length ? EXCECOES.join(', ') : 'nenhuma'}.`);
   if (EXCECOES.length) console.warn('[worker] ATENÇÃO: há IPs privados liberados. Não use isto numa instalação aberta.');
+  console.log(CHAVE_PAGESPEED ? `[worker] PageSpeed configurado: concorrência ${CONCORRENCIA_PAGESPEED}, agenda diária.` : '[worker] PageSpeed NÃO configurado (PAGESPEED_API_KEY ausente): nenhuma medição será agendada.');
   while (!encerrando) {
     const inicio = Date.now();
     try {
@@ -75,10 +82,25 @@ async function loop() {
     } catch (e) {
       console.error('[worker] rodada falhou:', e instanceof Error ? e.message : e);
     }
+    if (CHAVE_PAGESPEED) {
+      try {
+        if (Date.now() - ultimaAgenda > AGENDA_MS) {
+          const n = await agendarDiarios(pool);
+          if (n) console.log(`[worker] pagespeed: ${n} medições agendadas para hoje`);
+          await alertaDeFilaParada(pool);
+          ultimaAgenda = Date.now();
+        }
+        const ps = await rodadaPageSpeed(pool, { chave: CHAVE_PAGESPEED, concorrencia: CONCORRENCIA_PAGESPEED, workerId: WORKER_ID });
+        if (ps.reivindicados) console.log(`[worker] pagespeed: ${ps.medidos} medidas, ${ps.retentativas} retentativas, ${ps.falhas} falhas`);
+        acumuladoPs = { reivindicados: acumuladoPs.reivindicados + ps.reivindicados, medidos: acumuladoPs.medidos + ps.medidos, retentativas: acumuladoPs.retentativas + ps.retentativas, falhas: acumuladoPs.falhas + ps.falhas, descartados: acumuladoPs.descartados + ps.descartados };
+      } catch (e) {
+        console.error('[worker] pagespeed falhou:', e instanceof Error ? e.message : e);
+      }
+    }
     if (Date.now() - ultimoHeartbeat > HEARTBEAT_MS) {
       try {
         const fila = await estadoDaFila();
-        await heartbeat({ fase: 2, fila, acumulado, concorrencia: CONCORRENCIA });
+        await heartbeat({ fase: 3, fila, acumulado, concorrencia: CONCORRENCIA, pagespeed: { configurado: !!CHAVE_PAGESPEED, acumulado: acumuladoPs } });
         ultimoHeartbeat = Date.now();
       } catch (e) {
         console.error('[worker] heartbeat falhou:', e instanceof Error ? e.message : e);

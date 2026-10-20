@@ -32,6 +32,11 @@ Sem `BOOTSTRAP_*` no ambiente, o bootstrap pergunta no terminal. Ele se recusa a
 | `npm run test:e2e` | Playwright contra `next start` na porta 3100 (cria contas `e2e-a`/`e2e-b` no banco de `.env.local`) |
 | `npm run verificar` | typecheck + lint + design + testes |
 
+## PageSpeed (Fase 3)
+- Defina `PAGESPEED_API_KEY` no ambiente da aplicação (estado na tela) e do worker (medições). Sem ela nada é medido.
+- O worker agenda, uma vez por dia (UTC), uma medição por URL × dispositivo e drena com `PAGESPEED_CONCORRENCIA` (padrão 2). Em Configurações, "Fila parada" indica medições devidas há mais de 2 h sem nenhuma concluída: confira a cota da chave no console do Google e o log do worker.
+- "Medir agora" só enfileira (uma vez a cada 30 min por URL). Quem mede é o worker.
+
 ## Variáveis
 Documentadas em `.env.example`. Segredos só no gestor da hospedagem.
 

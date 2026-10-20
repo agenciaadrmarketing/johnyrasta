@@ -1,0 +1,10 @@
+{
+  "id": "https://www.exemplo.com.br/pagina-nova",
+  "loadingExperience": {
+    "id": "https://www.exemplo.com.br",
+    "metrics": { "LARGEST_CONTENTFUL_PAINT_MS": { "percentile": 2700, "category": "AVERAGE" }, "INTERACTION_TO_NEXT_PAINT": { "percentile": 250, "category": "NEEDS_IMPROVEMENT" } },
+    "overall_category": "AVERAGE",
+    "origin_fallback": true
+  },
+  "lighthouseResult": { "lighthouseVersion": "12.6.0", "categories": { "performance": { "score": 0.9 }, "accessibility": { "score": 0.9 }, "best-practices": { "score": 0.9 }, "seo": { "score": 0.9 } }, "audits": { "largest-contentful-paint": { "numericValue": 1000 }, "cumulative-layout-shift": { "numericValue": 0 }, "total-blocking-time": { "numericValue": 10 } } }
+}

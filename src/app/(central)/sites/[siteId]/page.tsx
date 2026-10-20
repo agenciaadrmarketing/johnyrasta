@@ -4,11 +4,12 @@ import { notFound } from 'next/navigation';
 import { exigirSessao } from '@/modules/accounts/contexto';
 import { buscarSite, estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
 import { historicoDeAlertas, incidentesDoSite, ROTULO_ALERTA } from '@/modules/monitoring/consultas';
+import { ultimasMedicoes, urlsDoSite } from '@/modules/performance/consultas';
 import { arquivarSite } from '@/modules/portfolio/acoes';
 import { Painel, Aviso } from '@/shared/ui/Painel';
 import { SeloEstado } from '@/shared/ui/SeloEstado';
 import { PLATAFORMAS } from '@/shared/validation/site';
-import { dataHora } from '@/shared/time/formato';
+import { dataHora, haQuantoTempo } from '@/shared/time/formato';
 
 export const metadata: Metadata = { title: 'Resumo do site' };
 
@@ -25,6 +26,9 @@ export default async function PaginaResumo({ params }: { params: Promise<{ siteI
   const worker = await estadoDoWorker(u.accountId);
   const alertas = await historicoDeAlertas(u.accountId, site.id, 8);
   const incidentes = await incidentesDoSite(u.accountId, site.id, 5);
+  const urls = await urlsDoSite(u.accountId, site.id);
+  const medicoes = await ultimasMedicoes(u.accountId, site.id);
+  const temChave = !!process.env.PAGESPEED_API_KEY;
   const s = site.situacao;
   const semWorker = !worker || workerSemSinal(worker.seenAt);
   const plataforma = PLATAFORMAS.find((p) => p.valor === site.platform)?.texto ?? site.platform;
@@ -45,7 +49,21 @@ export default async function PaginaResumo({ params }: { params: Promise<{ siteI
               : { estado: s.rotulo, tom: s.tom, detalhe: `${s.frase} Última checagem ${dataHora(site.monitor.lastCheckAt, site.timezone)}.` }),
       href: `/sites/${site.id}/disponibilidade`,
     },
-    { nome: 'Velocidade (PageSpeed)', estado: 'Não configurado', tom: 'soft', detalhe: 'Selecione até 3 URLs e configure a chave do Google (Fase 3).', href: `/sites/${site.id}/velocidade` },
+    {
+      nome: 'Velocidade (PageSpeed)',
+      ...(!temChave
+        ? { estado: 'Chave não configurada', tom: 'soft' as const, detalhe: urls.length ? `${urls.length} URL(s) escolhida(s); sem chave do Google nada é medido.` : 'Escolha até 3 URLs e configure a chave do Google.' }
+        : urls.length === 0
+          ? { estado: 'Nenhuma URL escolhida', tom: 'soft' as const, detalhe: 'Escolha até 3 páginas prioritárias para medir diariamente.' }
+          : medicoes.length === 0
+            ? { estado: 'Aguardando primeira medição', tom: 'warn' as const, detalhe: `${urls.length} URL(s) na agenda diária do worker.` }
+            : medicoes.some((m) => m.regression)
+              ? { estado: 'Possível regressão', tom: 'warn' as const, detalhe: 'Uma série caiu 10 pontos ou mais em relação à medição anterior. Confirme com nova medição.' }
+              : medicoes.some((m) => m.status === 'erro')
+                ? { estado: 'Medição com falha', tom: 'warn' as const, detalhe: 'Ao menos uma série falhou na última tentativa. Veja o motivo na aba.' }
+                : { estado: `Medido ${haQuantoTempo(medicoes[0]!.measuredAt)}`, tom: 'ok' as const, detalhe: `${medicoes.length} séries (URL × dispositivo) com medição.` }),
+      href: `/sites/${site.id}/velocidade`,
+    },
     { nome: 'Visitas e botões', estado: 'Coletor não instalado', tom: 'soft', detalhe: 'O script de coleta e o teste de instalação chegam na Fase 4.', href: `/sites/${site.id}/instalacao` },
     { nome: 'Contatos', estado: 'Sem recebimento', tom: 'soft', detalhe: 'Endpoint de formulário e integração confirmada chegam na Fase 4.', href: `/sites/${site.id}/contatos` },
   ];

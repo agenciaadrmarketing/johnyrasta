@@ -5,6 +5,7 @@ import { encerrarOutrasSessoes } from '@/modules/accounts/acoes';
 import { tokenAtualHash } from '@/modules/accounts/session';
 import { estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
 import { estadoDaFila } from '@/modules/monitoring/consultas';
+import { estadoPageSpeed } from '@/modules/performance/consultas';
 import { semConta, verificarBanco } from '@/shared/db';
 import { Cabecalho } from '@/shared/ui/Cabecalho';
 import { Painel, Aviso } from '@/shared/ui/Painel';
@@ -22,10 +23,11 @@ type Sessao = { id: string; created_at: Date; last_seen_at: Date; expires_at: Da
  */
 export default async function PaginaConfiguracoes() {
   const u = await exigirSessao();
-  const [banco, worker, fila, sessoes, atual] = [
+  const [banco, worker, fila, ps, sessoes, atual] = [
     await verificarBanco(),
     await estadoDoWorker(u.accountId),
     await estadoDaFila(u.accountId),
+    await estadoPageSpeed(u.accountId),
     await semConta((db) => db.query<Sessao>('select * from app.list_sessions($1)', [u.userId])),
     await tokenAtualHash(),
   ];
@@ -75,7 +77,20 @@ export default async function PaginaConfiguracoes() {
               )}
             </dd>
             <dt>PageSpeed (Google)</dt>
-            <dd>{pagespeed ? <SeloEstado texto="Chave presente · medições na Fase 3" tom="soft" /> : <SeloEstado texto="Não configurado" tom="soft" />}</dd>
+            <dd style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--esp-2)', alignItems: 'center' }}>
+              {!pagespeed ? (
+                <SeloEstado texto="Não configurado · sem chave" tom="soft" />
+              ) : ps.atrasados > 0 ? (
+                <SeloEstado texto={`Fila parada: ${ps.atrasados} medições devidas há mais de 2 h`} tom="neg" />
+              ) : ps.urls === 0 ? (
+                <SeloEstado texto="Chave presente · nenhuma URL escolhida" tom="soft" />
+              ) : (
+                <SeloEstado texto={`Ativo · ${ps.urls} URLs · ${ps.medicoes24h} medições em 24 h`} tom="ok" />
+              )}
+              {pagespeed && (ps.pendentes > 0 || ps.processando > 0 || ps.falhas24h > 0) && (
+                <span style={{ fontSize: 'var(--tipo-legenda)', color: 'var(--tx3)' }}>{ps.pendentes} na fila · {ps.processando} medindo · {ps.falhas24h} falhas em 24 h</span>
+              )}
+            </dd>
             <dt>E-mail de alertas</dt>
             <dd>{email ? <SeloEstado texto="Provedor configurado · entregas na Fase 5" tom="soft" /> : <SeloEstado texto="Não configurado · alertas só na central" tom="soft" />}</dd>
           </dl>

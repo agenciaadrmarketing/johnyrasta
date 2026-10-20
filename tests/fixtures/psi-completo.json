@@ -1,0 +1,37 @@
+{
+  "id": "https://www.exemplo.com.br/",
+  "loadingExperience": {
+    "id": "https://www.exemplo.com.br/",
+    "metrics": {
+      "LARGEST_CONTENTFUL_PAINT_MS": { "percentile": 2300, "category": "AVERAGE" },
+      "INTERACTION_TO_NEXT_PAINT": { "percentile": 180, "category": "FAST" },
+      "CUMULATIVE_LAYOUT_SHIFT_SCORE": { "percentile": 5, "category": "FAST" }
+    },
+    "overall_category": "AVERAGE"
+  },
+  "originLoadingExperience": {
+    "id": "https://www.exemplo.com.br",
+    "metrics": { "LARGEST_CONTENTFUL_PAINT_MS": { "percentile": 2500, "category": "AVERAGE" } },
+    "overall_category": "AVERAGE"
+  },
+  "lighthouseResult": {
+    "finalUrl": "https://www.exemplo.com.br/",
+    "lighthouseVersion": "12.6.0",
+    "categories": {
+      "performance": { "score": 0.72 },
+      "accessibility": { "score": 0.95 },
+      "best-practices": { "score": 1 },
+      "seo": { "score": 0.92 }
+    },
+    "audits": {
+      "largest-contentful-paint": { "numericValue": 3120.4 },
+      "cumulative-layout-shift": { "numericValue": 0.043 },
+      "total-blocking-time": { "numericValue": 210 },
+      "first-contentful-paint": { "numericValue": 1400 },
+      "speed-index": { "numericValue": 3900 },
+      "render-blocking-resources": { "title": "Eliminate render-blocking resources", "score": 0.4, "details": { "type": "opportunity", "overallSavingsMs": 820 } },
+      "unused-javascript": { "title": "Reduce unused JavaScript", "score": 0.6, "details": { "type": "opportunity", "overallSavingsMs": 450 } },
+      "uses-optimized-images": { "title": "Efficiently encode images", "score": 1, "details": { "type": "opportunity", "overallSavingsMs": 0 } }
+    }
+  }
+}

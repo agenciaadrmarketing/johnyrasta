@@ -77,3 +77,26 @@ A aba mostra a fração de amostras que respondeu, o número de amostras e as la
 
 ### D22. Retenção
 Checagens detalhadas: 30 dias (o worker apaga a cada hora). Incidentes e alertas ficam.
+
+## 2026-10-19 — Fase 3
+
+### D23. Fila genérica `audit_jobs` com lease e chave lógica
+Separada da fila de monitores: frequência, custo e significado são outros. Chave `pagespeed:<url>:<dispositivo>:<dia>` única entre trabalhos ativos; medição manual usa `manual-<carimbo>` com cooldown de 30 min por URL. Reivindicação com `SKIP LOCKED`, lease de 180 s (uma medição leva 30 a 60 s), gravação confere o token.
+
+### D24. Sem chave, nada acontece — e a tela diz isso
+`PAGESPEED_API_KEY` ausente: o worker não agenda, não consome e loga o motivo; a aba Velocidade e Configurações mostram "não configurado". URLs podem ser escolhidas antes da chave. Nenhum estado de erro vira nota.
+
+### D25. Estados de falha distintos, retentativa só para transitórios
+`cota` (429 ou 403 com "quota"), `timeout` (504/408/abort) e 5xx genérico → retentativa com backoff exponencial com jitter (2, 4, 8 min…), até 4 tentativas, depois `erro` registrado. `pagina_inacessivel` (Lighthouse não carregou o documento) e `bloqueado` (400/403) falham de vez. `resposta_parcial` grava o que veio e lista o que faltou.
+
+### D26. Laboratório e campo são tabelas diferentes
+`performance_runs` guarda Lighthouse (notas 0–100, LCP/CLS/TBT/FCP/SI simulados, até 10 oportunidades com economia individual, versão do Lighthouse, configuração). `crux_snapshots` guarda CrUX (p75 de LCP, INP, CLS) com `scope` `url` ou `origin` — a fonte sinaliza a queda para origem e a tela mostra "Origem". INP só vem do campo; TBT nunca é apresentado como INP. CrUX ausente é "dados insuficientes", não zero.
+
+### D27. Regressão é indicação, não alerta
+Queda de 10 pontos ou mais de performance em relação à última medição OK da mesma URL e dispositivo marca `regression`. A aba e o Resumo mostram "possível regressão" e pedem nova medição. Alerta automático de regressão fica para quando houver duas medições comparáveis em sequência (decisão adiada de propósito: a variabilidade do Lighthouse é conhecida).
+
+### D28. Economias não se somam
+As oportunidades aparecem individualmente, ordenadas; a tela avisa que se sobrepõem.
+
+### D29. Capacidade
+Agenda diária por URL × dispositivo. Concorrência padrão 2 no worker (`PAGESPEED_CONCORRENCIA`). Para 100 sites × 3 URLs × 2 dispositivos (600/dia) a 45 s cada, concorrência 2 drena em ~3,75 h; a cota efetiva da chave é o limite real e só se conhece no console do Google. "Fila parada" (devidas há mais de 2 h sem nenhuma concluída) gera um alerta por dia.
