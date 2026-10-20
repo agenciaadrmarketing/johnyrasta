@@ -1778,6 +1778,123 @@ svg:has(.funil-etapa:hover) .funil-etapa:not(:hover) text {
   .tabela-linha {
     animation: none !important;
   }
+
+  /* ── Relatório imprimível (Fase 5) ──
+     Os tokens de texto, borda e estado passam para os valores do tema CLARO,
+     qualquer que seja o tema na tela: legenda em `--tx3` do escuro sobre
+     papel branco fica em 2,9:1, e os selos (ok/aviso/falha) ficariam em
+     texto claro sobre fundo claro. São os mesmos valores do bloco
+     `[data-tema='claro']`; mudou lá, mude aqui. */
+  @page {
+    margin: 14mm;
+  }
+  :root,
+  :root[data-tema='escuro'],
+  :root[data-tema='claro'] {
+    --bg: #ffffff;
+    --side: #ffffff;
+    --card: #ffffff;
+    --elev: #ffffff;
+    --hover: #ffffff;
+    --tip: #ffffff;
+    --bd: #cbd9cd;
+    --bdc: #1f8f43;
+    --rowbd: rgba(14, 23, 16, 0.09);
+    --tx: #0e1710;
+    --tx2: #4c5d50;
+    --tx3: #56655a;
+    --gold: #1d8840;
+    --gold-tx: #186e34;
+    --gold-bd: rgba(31, 143, 67, 0.28);
+    --gold-fill: rgba(31, 143, 67, 0.12);
+    --pos: #1f8f43;
+    --pos-tx: #1b7c3a;
+    --neg: #a83232;
+    --neg-tx: #a83232;
+    --neg-bg: rgba(168, 50, 50, 0.12);
+    --ok-bg: rgba(31, 143, 67, 0.12);
+    --ok-tx: #186e34;
+    --warn-bg: rgba(160, 120, 20, 0.14);
+    --warn-tx: #7a5c10;
+    --soft-bg: rgba(14, 23, 16, 0.07);
+    --soft-tx: #4c5d50;
+    --c1: #186e34;
+    --c2: #0c5f92;
+    --c3: #7a5c10;
+    --c4: #a33232;
+    --c5: #56655a;
+    --f1: rgba(31, 143, 67, 0.16);
+    --f2: rgba(15, 111, 168, 0.16);
+    --f3: rgba(154, 107, 0, 0.16);
+    --f4: rgba(163, 50, 50, 0.16);
+    --f5: rgba(107, 125, 111, 0.14);
+    --glow: none;
+    --sombra-1: none;
+    --sombra-2: none;
+  }
+  /* O cabeçalho deixa de ser fixo e o período (sub-cabeçalho) fica visível. */
+  .cabecalho {
+    position: static !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    min-height: 0;
+    padding-top: 0;
+  }
+  .cabecalho-acoes {
+    display: none !important;
+  }
+  .sub-cabecalho {
+    border-bottom: 1px solid var(--bd);
+    padding-bottom: var(--esp-2);
+  }
+  .conteudo-painel,
+  .pagina {
+    padding: 0 !important;
+    gap: var(--esp-4) !important;
+  }
+  /* Quebra de página entre sites no relatório do cliente. */
+  .quebra-de-pagina {
+    break-before: page;
+    page-break-before: always;
+  }
+  /* Um cartão com tabela longa pode ser maior que a folha: deixa quebrar,
+     mas nunca no meio de uma linha, e repete o cabeçalho da tabela. */
+  .relatorio-site .cartao {
+    break-inside: auto;
+    padding: var(--esp-3) 0 var(--esp-4) !important;
+    border: 0 !important;
+    border-top: 1px solid var(--bd) !important;
+    border-radius: 0 !important;
+  }
+  .relatorio-site h2,
+  .relatorio-site h3 {
+    break-after: avoid;
+  }
+  .relatorio-site table {
+    min-width: 0 !important;
+    width: 100% !important;
+    break-inside: auto;
+  }
+  .relatorio-site thead {
+    display: table-header-group;
+  }
+  .relatorio-site tr {
+    break-inside: avoid;
+  }
+  .relatorio-site th,
+  .relatorio-site td {
+    padding: 4px 6px !important;
+    font-size: var(--tipo-legenda) !important;
+  }
+  .relatorio-site [style*='overflow'] {
+    overflow: visible !important;
+  }
+  .relatorio-site [data-testid='estado-vazio'] {
+    padding: var(--esp-3) !important;
+  }
+  .relatorio-site [data-testid='estado-vazio'] > span:first-child {
+    display: none !important;
+  }
 }
 
 /* ==========================================================================
