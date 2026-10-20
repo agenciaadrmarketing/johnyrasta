@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client, Pool } from 'pg';
 import { readFileSync } from 'node:fs';
-import { comoConta, criarConta, prepararBanco, urls } from './apoio';
+import { BANCO_TESTE, comoConta, criarConta, prepararBanco, urls } from './apoio';
 import { agendarDiarios, reivindicarTrabalhos, rodadaPageSpeed } from '../../worker/pagespeed';
 
 let admin: Client; let web: Pool; let worker: Pool;
@@ -21,7 +21,7 @@ beforeAll(async () => {
   const u = urls();
   admin = new Client({ connectionString: u.admin }); await admin.connect();
   web = new Pool({ connectionString: u.web, max: 2 });
-  const wu = new URL(process.env.DATABASE_URL_WORKER!); wu.pathname = '/johnyweb_test';
+  const wu = new URL(process.env.DATABASE_URL_WORKER!); wu.pathname = `/${BANCO_TESTE}`;
   worker = new Pool({ connectionString: wu.toString(), max: 6 });
   conta = await criarConta(admin, 'Conta PS');
   const c = await admin.query<{ id: string }>('insert into clients (account_id, name) values ($1, $2) returning id', [conta.accountId, 'C']);

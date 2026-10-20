@@ -6,7 +6,8 @@ import { randomBytes } from 'node:crypto';
  * reais e os papéis reais. Os testes falam com o banco como `app_web`, pelo
  * mesmo caminho da aplicação: transação + SET LOCAL app.account_id.
  */
-export const BANCO_TESTE = 'johnyweb_test';
+/** Nome do banco de teste; `TEST_DB_NAME` permite suítes paralelas em worktrees distintos. */
+export const BANCO_TESTE = process.env.TEST_DB_NAME ?? 'johnyweb_test';
 
 function url(base: string, db: string): string {
   const u = new URL(base);

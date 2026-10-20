@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client, Pool } from 'pg';
-import { comoConta, criarConta, prepararBanco, urls } from './apoio';
+import { BANCO_TESTE, comoConta, criarConta, prepararBanco, urls } from './apoio';
 import { rodada, gravar } from '../../worker/rodada';
 import { reivindicar } from '../../worker/fila';
 import type { ResultadoDaChecagem } from '@/modules/monitoring/transicao';
@@ -37,7 +37,7 @@ beforeAll(async () => {
   await admin.connect();
   web = new Pool({ connectionString: u.web, max: 2 });
   const workerUrl = new URL(process.env.DATABASE_URL_WORKER!);
-  workerUrl.pathname = '/johnyweb_test';
+  workerUrl.pathname = `/${BANCO_TESTE}`;
   worker = new Pool({ connectionString: workerUrl.toString(), max: 4 });
   conta = await criarConta(admin, 'Conta Fluxo');
   const c = await admin.query<{ id: string }>('insert into clients (account_id, name) values ($1, $2) returning id', [conta.accountId, 'C']);

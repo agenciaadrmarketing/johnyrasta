@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client, Pool } from 'pg';
 import { createHmac, randomBytes } from 'node:crypto';
-import { comoConta, criarConta, prepararBanco, urls } from './apoio';
+import { BANCO_TESTE, comoConta, criarConta, prepararBanco, urls } from './apoio';
 import { ingerirLote, siteDoPublicId } from '@/modules/analytics/ingestao';
 import { confirmarPeloDestino, hashDoSegredo, receberSubmissao, siteDeFormulario } from '@/modules/contacts/recepcao';
 import type { Queryable } from '@/shared/db';
@@ -13,7 +13,7 @@ function wrap(pool: Pool) {
     try { await c.query('begin'); const r = await fn(q); await c.query('commit'); return r; } catch (e) { await c.query('rollback').catch(() => {}); throw e; } finally { c.release(); }
   };
 }
-const poolDe = (env: string) => { const u = new URL(process.env[env]!); u.pathname = '/johnyweb_test'; return new Pool({ connectionString: u.toString(), max: 6 }); };
+const poolDe = (env: string) => { const u = new URL(process.env[env]!); u.pathname = `/${BANCO_TESTE}`; return new Pool({ connectionString: u.toString(), max: 6 }); };
 
 let admin: Client; let web: Pool; let ingest: Pool; let forms: Pool;
 let comIngest: ReturnType<typeof wrap>; let comForms: ReturnType<typeof wrap>;
