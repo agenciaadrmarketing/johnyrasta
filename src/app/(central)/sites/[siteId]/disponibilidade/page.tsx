@@ -5,6 +5,8 @@ import { exigirSessao } from '@/modules/accounts/contexto';
 import { buscarSite, estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
 import { historicoDeAlertas, incidentesDoSite, resumoDeChecagens, ultimasChecagens, ROTULO_ALERTA, ROTULO_CATEGORIA } from '@/modules/monitoring/consultas';
 import { definirManutencao, pausarOuRetomar, verificarAgora } from '@/modules/monitoring/acoes';
+import { emailLigadoParaOSite, preferenciasDeNotificacao } from '@/modules/notifications/consultas';
+import { alternarEmailDoSite } from '@/modules/notifications/acoes';
 import { Painel, Aviso } from '@/shared/ui/Painel';
 import { SeloEstado } from '@/shared/ui/SeloEstado';
 import { EstadoVazio } from '@/shared/ui/EstadoVazio';
@@ -45,13 +47,15 @@ export default async function PaginaDisponibilidade({ params }: { params: Promis
     );
   }
 
-  const [checagens, incidentes, r24, r7d, alertas, worker] = [
+  const [checagens, incidentes, r24, r7d, alertas, worker, emailDoSite, prefsEmail] = [
     await ultimasChecagens(u.accountId, site.id),
     await incidentesDoSite(u.accountId, site.id),
     await resumoDeChecagens(u.accountId, site.id, 24),
     await resumoDeChecagens(u.accountId, site.id, 24 * 7),
     await historicoDeAlertas(u.accountId, site.id),
     await estadoDoWorker(u.accountId),
+    await emailLigadoParaOSite(u.accountId, site.id),
+    await preferenciasDeNotificacao(u.accountId),
   ];
   // Um relógio só por renderização: o componente de servidor é puro em relação a ele.
   const agora = new Date();
@@ -242,6 +246,33 @@ export default async function PaginaDisponibilidade({ params }: { params: Promis
           </ul>
         </Painel>
       )}
+
+      <Painel
+        kicker="e-mail"
+        titulo="Notificações deste site"
+        subtitulo="Vale só para os alertas deste site. Quem recebe e quais tipos chegam ficam em Configurações."
+        acoes={
+          <form action={alternarEmailDoSite}>
+            <input type="hidden" name="site" value={site.id} />
+            <input type="hidden" name="ligar" value={emailDoSite ? '0' : '1'} />
+            <button type="submit" className="botao botao-pequeno">{emailDoSite ? 'Desligar e-mail para este site' : 'Ligar e-mail para este site'}</button>
+          </form>
+        }
+      >
+        <dl className="definicoes">
+          <dt>Este site</dt>
+          <dd><SeloEstado texto={emailDoSite ? 'E-mail ligado' : 'E-mail desligado'} tom={emailDoSite ? 'ok' : 'soft'} /></dd>
+          <dt>Na conta</dt>
+          <dd style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--esp-2)', alignItems: 'center' }}>
+            {prefsEmail.emailEnabled ? (
+              <SeloEstado texto={`Ligado · ${prefsEmail.recipients.length} ${prefsEmail.recipients.length === 1 ? 'destinatário' : 'destinatários'}`} tom="ok" />
+            ) : (
+              <SeloEstado texto="Desligado: nada é enviado, mesmo com este site ligado" tom="soft" />
+            )}
+            <Link href="/configuracoes#notificacoes" style={{ fontSize: 'var(--tipo-apoio)' }}>Configurações → Notificações</Link>
+          </dd>
+        </dl>
+      </Painel>
     </div>
   );
 }
