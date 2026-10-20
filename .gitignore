@@ -9,3 +9,6 @@ next-env.d.ts
 playwright-report/
 test-results/
 .DS_Store
+
+# Worktrees temporários dos workflows de agentes
+.claude/worktrees/
