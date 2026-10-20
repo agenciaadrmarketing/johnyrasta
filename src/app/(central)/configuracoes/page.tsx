@@ -4,14 +4,18 @@ import { exigirSessao } from '@/modules/accounts/contexto';
 import { encerrarOutrasSessoes } from '@/modules/accounts/acoes';
 import { tokenAtualHash } from '@/modules/accounts/session';
 import { estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
-import { estadoDaFila } from '@/modules/monitoring/consultas';
+import { estadoDaFila, ROTULO_ALERTA } from '@/modules/monitoring/consultas';
 import { estadoPageSpeed } from '@/modules/performance/consultas';
+import { estadoDoProvedorDeEmail, preferenciasDeNotificacao, ROTULO_ENTREGA, ultimasEntregas } from '@/modules/notifications/consultas';
+import { TIPOS_DE_ALERTA } from '@/modules/notifications/regras';
 import { semConta, verificarBanco } from '@/shared/db';
 import { Cabecalho } from '@/shared/ui/Cabecalho';
 import { Painel, Aviso } from '@/shared/ui/Painel';
 import { SeloEstado } from '@/shared/ui/SeloEstado';
+import { Etiqueta } from '@/shared/ui/Etiqueta';
+import { EstadoVazio } from '@/shared/ui/EstadoVazio';
 import { dataHora, haQuantoTempo } from '@/shared/time/formato';
-import { FormularioPerfil, FormularioSenha } from './formularios';
+import { FormularioNotificacoes, FormularioPerfil, FormularioSenha } from './formularios';
 
 export const metadata: Metadata = { title: 'Configurações' };
 
@@ -23,17 +27,26 @@ type Sessao = { id: string; created_at: Date; last_seen_at: Date; expires_at: Da
  */
 export default async function PaginaConfiguracoes() {
   const u = await exigirSessao();
-  const [banco, worker, fila, ps, sessoes, atual] = [
+  const [banco, worker, fila, ps, sessoes, atual, prefs, entregas, email] = [
     await verificarBanco(),
     await estadoDoWorker(u.accountId),
     await estadoDaFila(u.accountId),
     await estadoPageSpeed(u.accountId),
     await semConta((db) => db.query<Sessao>('select * from app.list_sessions($1)', [u.userId])),
     await tokenAtualHash(),
+    await preferenciasDeNotificacao(u.accountId),
+    await ultimasEntregas(u.accountId, 10),
+    await estadoDoProvedorDeEmail(u.accountId),
   ];
   const workerAtrasado = worker ? workerSemSinal(worker.seenAt) : true;
   const pagespeed = !!process.env.PAGESPEED_API_KEY;
-  const email = !!process.env.EMAIL_PROVIDER;
+  const provedorApp = email.aplicacao.ativo ? email.aplicacao.provedor : null;
+  // O worker é outro processo: só o heartbeat diz o que ELE leu do ambiente.
+  const workerDiverge = email.worker !== null && email.worker.provedor !== provedorApp;
+  const preferenciaSemProvedor = prefs.emailEnabled && !email.aplicacao.ativo;
+  const tipos = TIPOS_DE_ALERTA.map((kind) => ({ kind, rotulo: ROTULO_ALERTA[kind] ?? kind }));
+  const celula = { padding: '9px 10px', fontSize: 'var(--tipo-apoio)' } as const;
+  const cabecalhoTabela = { textAlign: 'left', padding: '9px 10px', fontSize: 'var(--tipo-legenda)', color: 'var(--tx2)', borderBottom: '1px solid var(--bd)', whiteSpace: 'nowrap' } as const;
 
   return (
     <>
@@ -92,7 +105,20 @@ export default async function PaginaConfiguracoes() {
               )}
             </dd>
             <dt>E-mail de alertas</dt>
-            <dd>{email ? <SeloEstado texto="Provedor configurado · entregas na Fase 5" tom="soft" /> : <SeloEstado texto="Não configurado · alertas só na central" tom="soft" />}</dd>
+            <dd style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--esp-2)', alignItems: 'center' }}>
+              {email.aplicacao.ativo ? (
+                <SeloEstado texto={email.aplicacao.descricao} tom={email.aplicacao.provedor === 'log' ? 'warn' : 'ok'} />
+              ) : (
+                <SeloEstado texto="Nenhum provedor configurado · alertas ficam só na central" tom="soft" titulo={email.aplicacao.motivo} />
+              )}
+              {preferenciaSemProvedor && <SeloEstado texto="Preferência salva; nada será enviado até configurar EMAIL_PROVIDER" tom="warn" />}
+              {email.worker && (
+                <span style={{ fontSize: 'var(--tipo-legenda)', color: workerDiverge ? 'var(--warn-tx)' : 'var(--tx3)' }}>
+                  worker: {email.worker.provedor ? `provedor ${email.worker.provedor}` : 'sem provedor'} · {email.worker.pendentes} {email.worker.pendentes === 1 ? 'entrega pendente' : 'entregas pendentes'} · {email.worker.falhas24h} {email.worker.falhas24h === 1 ? 'falha' : 'falhas'} em 24 h
+                  {workerDiverge && ' · diferente do ambiente da aplicação: quem envia é o worker'}
+                </span>
+              )}
+            </dd>
           </dl>
           {(!worker || workerAtrasado) && (
             <div style={{ marginTop: 'var(--esp-3)' }}>
@@ -103,6 +129,67 @@ export default async function PaginaConfiguracoes() {
                   <code className="mono">docs/OPERACAO.md</code>.
                 </span>
               </Aviso>
+            </div>
+          )}
+        </Painel>
+
+        <Painel
+          kicker="alertas"
+          titulo="Notificações"
+          id="notificacoes"
+          subtitulo="Quem recebe e-mail quando o worker gera um alerta. Só alertas criados depois de salvar são enviados; os anteriores continuam em Atenção. Cada site pode ser desligado na própria aba Disponibilidade."
+        >
+          {preferenciaSemProvedor && (
+            <div style={{ marginBottom: 'var(--esp-4)' }}>
+              <Aviso tom="warn">
+                <span>
+                  <strong>Preferência salva; nada será enviado até configurar <code className="mono">EMAIL_PROVIDER</code>.</strong> Defina o provedor, a chave e o remetente
+                  no ambiente do worker (veja <code className="mono">.env.example</code>). Até lá os alertas ficam só na central.
+                </span>
+              </Aviso>
+            </div>
+          )}
+          <FormularioNotificacoes prefs={prefs} tipos={tipos} provedorAtivo={email.aplicacao.ativo} />
+
+          <h3 style={{ fontSize: 'var(--tipo-corpo)', fontWeight: 'var(--peso-forte)', marginTop: 'var(--esp-6)', marginBottom: 'var(--esp-2)' }}>Últimas entregas</h3>
+          {entregas.length === 0 ? (
+            !email.aplicacao.ativo ? (
+              <EstadoVazio tom="configurar" kicker="aguardando configuração" icone="caixa" titulo="Nenhuma entrega registrada" explicacao="Sem provedor configurado, o worker não enfileira nada. Configure EMAIL_PROVIDER no ambiente do worker para começar." />
+            ) : !prefs.emailEnabled ? (
+              <EstadoVazio tom="neutro" icone="caixa" titulo="E-mail desligado" explicacao="Ligue o envio acima e informe destinatários. Alertas gerados a partir daí passam a ser entregues." />
+            ) : (
+              <EstadoVazio tom="aguardando" kicker="aguardando o primeiro alerta" icone="relogio" titulo="Nenhuma entrega ainda" explicacao="A primeira sai quando o worker gerar um alerta de um dos tipos escolhidos. Nada é reenviado para o mesmo alerta." />
+            )
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+                <thead>
+                  <tr>
+                    {['Quando', 'Destinatário', 'Alerta', 'Estado', 'Tentativa', 'Detalhe'].map((h) => (
+                      <th key={h} scope="col" style={cabecalhoTabela}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {entregas.map((e) => (
+                    <tr key={e.id} className="tabela-linha" style={{ borderBottom: '1px solid var(--rowbd)' }}>
+                      <td style={{ ...celula, whiteSpace: 'nowrap' }}>{dataHora(e.sentAt ?? e.updatedAt)}</td>
+                      <td style={celula} className="mono">{e.recipient}</td>
+                      <td style={celula}>
+                        {ROTULO_ALERTA[e.alertKind] ?? e.alertKind}
+                        {e.siteNome && <span style={{ color: 'var(--tx3)' }}> · {e.siteNome}</span>}
+                      </td>
+                      <td style={celula}>
+                        <Etiqueta texto={ROTULO_ENTREGA[e.state]} tom={e.state === 'enviado' ? 'ok' : e.state === 'falhou' ? 'neg' : e.state === 'pendente' ? 'warn' : 'soft'} />
+                      </td>
+                      <td style={celula} className="mono">{e.attempts} de {e.maxAttempts}</td>
+                      <td style={{ ...celula, color: 'var(--tx3)' }}>
+                        {e.state === 'enviado' ? `via ${e.provider ?? 'provedor'}` : e.state === 'pendente' ? (e.lastError ? `${e.lastError} · nova tentativa ${dataHora(e.nextAttemptAt)}` : 'aguardando o worker') : e.lastError ?? '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </Painel>

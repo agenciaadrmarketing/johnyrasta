@@ -15,12 +15,17 @@
  *   WORKER_ID                     identificador desta instância
  *   MONITOR_CONCORRENCIA          checagens simultâneas (padrão 5)
  *   MONITOR_EXCECOES_DE_REDE      IPs privados permitidos, separados por vírgula (NUNCA em produção aberta)
+ *   EMAIL_PROVIDER                resend | postmark | webhook | log | ausente (e-mail desativado)
+ *   EMAIL_API_KEY, EMAIL_FROM, EMAIL_WEBHOOK_URL, APP_URL   conforme o provedor (veja .env.example)
  */
 import { Pool } from 'pg';
 import { hostname } from 'node:os';
 import { loadEnv } from '../scripts/env';
 import { rodada, retencao, alertaDeColetaParada } from './rodada';
 import { agendarDiarios, alertaDeFilaParada, rodadaPageSpeed } from './pagespeed';
+import { criarEnviador } from './email';
+import { estadoDoOutbox, rodadaOutbox } from './outbox';
+import { lerConfigDeEmail } from '@/modules/notifications/provedor';
 
 loadEnv();
 
@@ -40,6 +45,9 @@ const EXCECOES = (process.env.MONITOR_EXCECOES_DE_REDE ?? '').split(',').map((s)
 const CHAVE_PAGESPEED = process.env.PAGESPEED_API_KEY || null;
 const CONCORRENCIA_PAGESPEED = Number(process.env.PAGESPEED_CONCORRENCIA ?? 2);
 const AGENDA_MS = 5 * 60 * 1000;
+const EMAIL = lerConfigDeEmail(process.env);
+const enviarEmail = criarEnviador(EMAIL);
+const URL_DA_CENTRAL = (process.env.APP_URL ?? '').trim().replace(/\/+$/, '') || null;
 
 const pool = new Pool({ connectionString: url, max: CONCORRENCIA + 2 });
 
@@ -68,11 +76,18 @@ let ultimaRetencao = 0;
 let ultimaAgenda = 0;
 let acumuladoPs = { reivindicados: 0, medidos: 0, retentativas: 0, falhas: 0, descartados: 0 };
 let acumulado = { reivindicados: 0, gravados: 0, descartados: 0, erros: 0 };
+let acumuladoEmail = { enfileiradas: 0, enviadas: 0, reagendadas: 0, falhas: 0, descartadas: 0 };
 
 async function loop() {
   console.log(`[worker] ${WORKER_ID} iniciado. Concorrência ${CONCORRENCIA}. Exceções de rede: ${EXCECOES.length ? EXCECOES.join(', ') : 'nenhuma'}.`);
   if (EXCECOES.length) console.warn('[worker] ATENÇÃO: há IPs privados liberados. Não use isto numa instalação aberta.');
   console.log(CHAVE_PAGESPEED ? `[worker] PageSpeed configurado: concorrência ${CONCORRENCIA_PAGESPEED}, agenda diária.` : '[worker] PageSpeed NÃO configurado (PAGESPEED_API_KEY ausente): nenhuma medição será agendada.');
+  if (EMAIL.ativo) {
+    console.log(`[worker] e-mail: ${EMAIL.descricao}${URL_DA_CENTRAL ? ` · links para ${URL_DA_CENTRAL}` : ' · APP_URL ausente: as mensagens levam só o caminho na central'}.`);
+    if (EMAIL.provedor === 'log') console.warn('[worker] e-mail em modo log: as entregas são marcadas como enviadas mas NADA chega a uma caixa de entrada. Só para desenvolvimento.');
+  } else {
+    console.log(`[worker] e-mail desativado: alertas só na central (${EMAIL.motivo}).`);
+  }
   while (!encerrando) {
     const inicio = Date.now();
     try {
@@ -97,10 +112,27 @@ async function loop() {
         console.error('[worker] pagespeed falhou:', e instanceof Error ? e.message : e);
       }
     }
+    if (enviarEmail) {
+      try {
+        const ob = await rodadaOutbox(pool, { enviar: enviarEmail, provedor: EMAIL.ativo ? EMAIL.provedor : 'nenhum', urlDaCentral: URL_DA_CENTRAL });
+        if (ob.enfileiradas || ob.reivindicadas) console.log(`[worker] e-mail: ${ob.enfileiradas} enfileiradas, ${ob.enviadas} enviadas, ${ob.reagendadas} reagendadas, ${ob.falhas} falhas, ${ob.descartadas} descartadas`);
+        acumuladoEmail = { enfileiradas: acumuladoEmail.enfileiradas + ob.enfileiradas, enviadas: acumuladoEmail.enviadas + ob.enviadas, reagendadas: acumuladoEmail.reagendadas + ob.reagendadas, falhas: acumuladoEmail.falhas + ob.falhas, descartadas: acumuladoEmail.descartadas + ob.descartadas };
+      } catch (e) {
+        console.error('[worker] outbox de e-mail falhou:', e instanceof Error ? e.message : e);
+      }
+    }
     if (Date.now() - ultimoHeartbeat > HEARTBEAT_MS) {
       try {
         const fila = await estadoDaFila();
-        await heartbeat({ fase: 4, fila, acumulado, concorrencia: CONCORRENCIA, pagespeed: { configurado: !!CHAVE_PAGESPEED, acumulado: acumuladoPs } });
+        const outbox = await estadoDoOutbox(pool);
+        await heartbeat({
+          fase: 4,
+          fila,
+          acumulado,
+          concorrencia: CONCORRENCIA,
+          pagespeed: { configurado: !!CHAVE_PAGESPEED, acumulado: acumuladoPs },
+          email: { provedor: EMAIL.ativo ? EMAIL.provedor : null, pendentes: outbox.pendentes, falhas24h: outbox.falhas24h, acumulado: acumuladoEmail },
+        });
         ultimoHeartbeat = Date.now();
       } catch (e) {
         console.error('[worker] heartbeat falhou:', e instanceof Error ? e.message : e);
