@@ -295,3 +295,6 @@ Supabase entra apenas como PostgreSQL (sem Auth/Storage/Data API/chaves). TLS pa
 ### D89. Medição da lentidão antes de otimizar
 `npm run medir` (login, listagem, abas; TTFB/DOM/carregada, p50/p95, base sem banco), `DB_LOG_LENTO_MS` (duração e nº de consultas por transação) e o preflight (latência de ida e volta e custo de uma transação da central: 4 idas e voltas). Nenhuma otimização foi feita sem número de produção.
 
+### D90. Nenhuma infraestrutura é considerada aprovada
+VPS, projeto Supabase, DNS, e-mail, PageSpeed, backup externo e monitor estão PENDENTES (`docs/INFRAESTRUTURA-PENDENTE.md`). O preflight é somente leitura; qualquer adaptação de permissão (em especial a ausência de `BYPASSRLS`) é explicada antes e só implementada com decisão do usuário. A Hostinger Premium não atende ao worker contínuo. A V1 e o banco antigo permanecem intactos até a validação.
+

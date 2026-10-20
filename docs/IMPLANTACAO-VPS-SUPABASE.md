@@ -1,6 +1,6 @@
 # Implantação: VPS (Next.js + worker) e banco no Supabase
 
-Estado: **preparada, não executada**. Nada foi contratado, nenhum DNS alterado e nenhuma migração rodou em produção. O que foi **testado** está marcado como tal; o que depende do painel do Supabase, da Hostinger ou do DNS está marcado **[depende da infraestrutura]**. Este documento complementa `docs/ROTEIRO-PILOTO.md` (piloto), `docs/COMPATIBILIDADE.md` (retorno de versão) e `docs/BACKUP.md`.
+Estado: **preparada, não executada**. A VPS ainda **não foi contratada nem aprovada**; a lista do que está pendente e a ordem de contratação estão em [`INFRAESTRUTURA-PENDENTE.md`](INFRAESTRUTURA-PENDENTE.md). Nada foi contratado, nenhum DNS alterado e nenhuma migração rodou em produção. O que foi **testado** está marcado como tal; o que depende do painel do Supabase, da Hostinger ou do DNS está marcado **[depende da infraestrutura]**. Este documento complementa `docs/ROTEIRO-PILOTO.md` (piloto), `docs/COMPATIBILIDADE.md` (retorno de versão) e `docs/BACKUP.md`.
 
 ## 0. Pontos de atenção antes de tudo
 
