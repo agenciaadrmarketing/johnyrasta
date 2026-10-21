@@ -177,3 +177,18 @@ export async function estadoDaFila(accountId: string): Promise<EstadoDaFila> {
   );
   return r ?? { monitoresAtivos: 0, devidos: 0, atrasados: 0, maisAntigoSegundos: null };
 }
+
+export type DiaDeChecagens = { dia: Date; total: number; ok: number; mediaMs: number | null };
+
+/** Checagens agrupadas por dia (fuso do site) nos últimos `dias`: total, bem-sucedidas e tempo médio de resposta. */
+export async function checagensPorDia(accountId: string, siteId: string, fuso: string, dias: number): Promise<DiaDeChecagens[]> {
+  return comConta(accountId, (db) =>
+    db.query<DiaDeChecagens>(
+      `select date_trunc('day', checked_at at time zone $2) as dia, count(*)::int as total, count(*) filter (where ok)::int as ok,
+              round(avg(duration_ms) filter (where ok))::int as "mediaMs"
+         from checks where site_id = $1 and checked_at >= now() - make_interval(days => $3)
+        group by 1 order by 1`,
+      [siteId, fuso, dias],
+    ),
+  );
+}

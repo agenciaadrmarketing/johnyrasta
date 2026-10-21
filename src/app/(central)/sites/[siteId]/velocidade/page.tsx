@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { exigirSessao } from '@/modules/accounts/contexto';
 import { buscarSite } from '@/modules/portfolio/consultas';
-import { historicoDeMedicoes, trabalhosPendentes, ultimasMedicoes, ultimoCrux, urlsDoSite, ROTULO_ERRO_PS, type Medicao } from '@/modules/performance/consultas';
+import { historicoDeMedicoes, serieDePerformance, trabalhosPendentes, ultimasMedicoes, ultimoCrux, urlsDoSite, ROTULO_ERRO_PS, type Medicao } from '@/modules/performance/consultas';
+import { CartaoDeSerie, type Serie } from '@/shared/ui/CartaoDeSerie';
+import { data } from '@/shared/time/formato';
 import { medirAgora, removerUrl } from '@/modules/performance/acoes';
 import { LIMITE_DE_URLS_POR_SITE } from '@/modules/performance/pagespeed';
 import { Painel, Aviso } from '@/shared/ui/Painel';
@@ -30,9 +32,13 @@ function Nota({ rotulo, valor }: { rotulo: string; valor: number | null }) {
   );
 }
 
-export default async function PaginaVelocidade({ params }: { params: Promise<{ siteId: string }> }) {
+const PERIODOS_SERIE = [30, 90, 365] as const;
+
+export default async function PaginaVelocidade({ params, searchParams }: { params: Promise<{ siteId: string }>; searchParams: Promise<{ serie?: string }> }) {
   const u = await exigirSessao();
   const { siteId } = await params;
+  const { serie: serieParam } = await searchParams;
+  const diasDaSerie = (PERIODOS_SERIE as readonly number[]).includes(Number(serieParam)) ? Number(serieParam) : 90;
   const site = await buscarSite(u.accountId, u.userId, siteId);
   if (!site) notFound();
   const configurado = !!process.env.PAGESPEED_API_KEY;
@@ -43,6 +49,14 @@ export default async function PaginaVelocidade({ params }: { params: Promise<{ s
     await ultimoCrux(u.accountId, site.id),
     await trabalhosPendentes(u.accountId, site.id),
   ];
+  const serie = await serieDePerformance(u.accountId, site.id, diasDaSerie);
+  // Um eixo de dias compartilhado: dia sem medição ok é lacuna, nunca interpolação.
+  const diasEixo = [...new Set(serie.pontos.map((p) => p.dia.getTime()))].sort((a, b) => a - b).map((t) => new Date(t));
+  const seriesDeNota: Serie[] = (['mobile', 'desktop'] as const).map((dev, i) => ({
+    nome: dev === 'mobile' ? 'Mobile' : 'Desktop',
+    cor: (i === 0 ? 'c1' : 'c2') as 'c1' | 'c2',
+    pontos: diasEixo.map((d) => ({ quando: d, valor: serie.pontos.find((p) => p.device === dev && p.dia.getTime() === d.getTime())?.performance ?? null })),
+  })).filter((s) => s.pontos.some((p) => p.valor !== null)).sort((a) => (a.nome === 'Mobile' ? -1 : 1));
   const fuso = site.timezone;
   const porUrlDisp = new Map<string, Medicao>(ultimas.map((m) => [`${m.monitoredUrlId}:${m.device}`, m]));
   const pendentePara = (id: string, d: string) => pendentes.find((p) => p.monitoredUrlId === id && p.device === d);
@@ -122,6 +136,18 @@ export default async function PaginaVelocidade({ params }: { params: Promise<{ s
           A nota de SEO do Lighthouse mede boas práticas técnicas da página. Não mede posicionamento, tráfego orgânico nem citações em IA.
         </p>
       </Painel>
+
+      <CartaoDeSerie
+        kicker="ao longo do tempo"
+        titulo="Nota de performance"
+        subtitulo={serie.url ? `${serie.url} · última medição ok de cada dia, por dispositivo. A nota do Lighthouse oscila entre medições; leia a tendência, não um ponto.` : 'Escolha uma URL prioritária para acompanhar a nota ao longo do tempo.'}
+        series={seriesDeNota}
+        formatar={(v) => String(Math.round(v))}
+        formatarData={(d) => data(d, fuso).slice(0, 5)}
+        dominio={[0, 100]}
+        periodos={PERIODOS_SERIE.map((n) => ({ rotulo: n === 365 ? '12 meses' : `${n} dias`, href: `/sites/${site.id}/velocidade?serie=${n}`, atual: diasDaSerie === n }))}
+        vazio={configurado ? { titulo: 'Ainda não há duas medições para traçar', explicacao: 'A linha aparece a partir do segundo dia medido. Nada é desenhado antes disso.' } : { titulo: 'Sem chave do PageSpeed, não há medição', explicacao: 'Defina PAGESPEED_API_KEY no worker e na aplicação. Medições anteriores, se houver, continuam no histórico abaixo.', tom: 'configurar' }}
+      />
 
       <Painel kicker="dados de campo (CrUX)" titulo="O que usuários reais sentiram" subtitulo="Percentil 75 dos últimos 28 dias informados pelo Google. INP vem daqui, não do laboratório. 'Origem' significa que a página não tinha volume e o dado é do site inteiro.">
         {crux.length === 0 ? (

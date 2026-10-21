@@ -307,3 +307,9 @@ Em PostgreSQL gerenciado o dono das tabelas pode não ter `BYPASSRLS`; com RLS f
 ### D93. Medição antes de otimizar, e o que ela mostrou
 Com banco local (~1 ms de ida e volta), build de produção: TTFB de 58–92 ms por tela, páginas carregadas em 150–290 ms, login 360–430 ms (dos quais ~110–195 ms são scrypt). Cada tela faz 5–16 transações de **uma consulta cada** (4 idas e voltas por transação), em série; nenhuma consulta SQL passou de 10 ms. `buscarSite` rodava repetido (layout, página, relatório, pré-carregamento das abas); `buscarSite`, `contagensDoMenu`, `estadoDoWorker` e `contarAlertasAbertos` ganharam `cache()` por requisição. Efeitos Matrix: +0,9 ponto percentual de CPU da aba no desktop (2,5% → 3,4%), 60 quadros/s nas duas telas; o custo no celular físico não foi medido. A "lentidão generalizada" relatada **não se reproduz** neste ambiente; a hipótese a testar com o banco remoto é transações × 4 idas e voltas × latência (o preflight mede).
 
+### D94. Componentes de terceiros entram como ideia, nunca como código
+Os componentes shadcn/Tailwind enviados (bento de carteira cripto e cartão de métrica) não foram instalados: exigiriam Tailwind, tokens do shadcn e `lucide-react` ao lado do Matrix, traziam dados inventados e animações contínuas. O que tinha valor foi refeito em Matrix, com dado real e sem JavaScript no cliente: `CartaoDeSerie` (série temporal com variação, máximo/mínimo/média e período por link), `LinhaDoTempo` (acontecimentos com ícone, título, detalhe e hora) e a faixa de barras diárias. Lacuna curta (até 2 posições) é atravessada pela linha; maior quebra; nenhum ponto sem medição.
+
+### D95. Resumo do site mostra fatos dos quatro módulos
+"Últimos acontecimentos" listava só alertas e saía vazio mesmo com incidente registrado (defeito). Agora reúne incidentes (abertura e recuperação), alertas, últimas medições ok e envios de formulário, do mais recente ao mais antigo, 8 itens, cada um com destino na aba certa.
+

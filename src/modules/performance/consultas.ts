@@ -96,3 +96,25 @@ export async function estadoPageSpeed(accountId: string): Promise<EstadoPageSpee
   );
   return { configurado: !!process.env.PAGESPEED_API_KEY, urls: 0, pendentes: 0, processando: 0, atrasados: 0, medicoes24h: 0, falhas24h: 0, ...r };
 }
+
+export type PontoDeNota = { dia: Date; device: Dispositivo; performance: number };
+
+/**
+ * Série de performance da URL de prioridade 1 (ou da única URL), por dispositivo e por dia,
+ * nos últimos `dias`. Um ponto por dia: a ÚLTIMA medição ok do dia. Não há média entre URLs
+ * nem entre dispositivos (não existe "nota do site").
+ */
+export async function serieDePerformance(accountId: string, siteId: string, dias: number): Promise<{ url: string | null; pontos: PontoDeNota[] }> {
+  return comConta(accountId, async (db) => {
+    const u = await db.one<{ id: string; url: string }>('select id, url from monitored_urls where site_id = $1 and archived_at is null order by priority, created_at limit 1', [siteId]);
+    if (!u) return { url: null, pontos: [] };
+    const pontos = await db.query<PontoDeNota>(
+      `select distinct on (date_trunc('day', measured_at), device) date_trunc('day', measured_at) as dia, device, performance
+         from performance_runs
+        where monitored_url_id = $1 and status = 'ok' and performance is not null and measured_at >= now() - make_interval(days => $2)
+        order by date_trunc('day', measured_at), device, measured_at desc`,
+      [u.id, dias],
+    );
+    return { url: u.url, pontos };
+  });
+}

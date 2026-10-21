@@ -70,6 +70,23 @@ test.describe('revisão funcional e responsiva', () => {
     await page.goto(`${s}/velocidade`);
     await expect(page.getByText(/71|52/).first()).toBeVisible();
     await expect(page.getByText(/possível regressão/i).first()).toBeVisible();
+    // Cartão de série (adaptado em Matrix): nota ao longo do tempo com máximo/mínimo/média e seletor de período.
+    await expect(page.getByRole('heading', { name: 'Nota de performance' })).toBeVisible();
+    await expect(page.getByRole('img', { name: /Nota de performance: 52/ })).toBeVisible();
+    await page.getByRole('link', { name: '12 meses' }).click();
+    await expect(page).toHaveURL(/serie=365/);
+    await expect(page.getByRole('img', { name: /Nota de performance/ })).toBeVisible();
+    await page.goto(`${s}/disponibilidade?dias=30`);
+    await expect(page.getByRole('heading', { name: 'Tempo de resposta' })).toBeVisible();
+    await expect(page.getByRole('img', { name: /Tempo de resposta: \d+ ms/ })).toBeVisible();
+    await expect(page.getByRole('img', { name: /92 de 96 checagens responderam/ })).toBeVisible();
+    await page.goto(s);
+    // Linha do tempo do Resumo: incidente, recuperação, medições e contatos aparecem (antes a seção saía vazia).
+    const linha = page.getByTestId('linha-do-tempo');
+    await expect(linha.getByText('Site respondendo de novo')).toBeVisible();
+    await expect(linha.getByText('Indisponível para o monitor')).toBeVisible();
+    await expect(linha.getByText(/PageSpeed mobile: performance 52/)).toBeVisible();
+    await expect(linha.getByText(/Novo contato|Contato enviou de novo/).first()).toBeVisible();
     await page.goto(`${s}/botoes`);
     await expect(page.getByText('cta-whatsapp').first()).toBeVisible();
     await page.goto(`${s}/contatos`);

@@ -31,3 +31,9 @@ export function haQuantoTempo(valor: Date | string, agora: Date = new Date()): s
   const meses = Math.round(dias / 30);
   return `há ${meses} ${meses === 1 ? 'mês' : 'meses'}`;
 }
+
+/** Relativo quando é recente (menos de 7 dias), data e hora completas quando é antigo. */
+export function quandoRelativoOuData(valor: Date | string, fuso = 'America/Sao_Paulo', agora: Date = new Date()): string {
+  const d = typeof valor === 'string' ? new Date(valor) : valor;
+  return agora.getTime() - d.getTime() < 7 * 24 * 3600_000 ? haQuantoTempo(d, agora) : dataHora(d, fuso);
+}

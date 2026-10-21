@@ -3,14 +3,16 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { exigirSessao } from '@/modules/accounts/contexto';
 import { buscarSite, estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
-import { historicoDeAlertas, incidentesDoSite, ROTULO_ALERTA } from '@/modules/monitoring/consultas';
+import { historicoDeAlertas, incidentesDoSite, ROTULO_ALERTA, ROTULO_CATEGORIA } from '@/modules/monitoring/consultas';
+import { listarSubmissoes } from '@/modules/contacts/consultas';
+import { LinhaDoTempo, type Acontecimento } from '@/shared/ui/LinhaDoTempo';
 import { ultimasMedicoes, urlsDoSite } from '@/modules/performance/consultas';
 import { periodoDeDias, resumoDeEventos, rastreamentoDoSite } from '@/modules/analytics/consultas';
 import { arquivarSite } from '@/modules/portfolio/acoes';
 import { Painel, Aviso } from '@/shared/ui/Painel';
 import { SeloEstado } from '@/shared/ui/SeloEstado';
 import { PLATAFORMAS } from '@/shared/validation/site';
-import { dataHora, haQuantoTempo } from '@/shared/time/formato';
+import { dataHora, haQuantoTempo, quandoRelativoOuData } from '@/shared/time/formato';
 
 export const metadata: Metadata = { title: 'Resumo do site' };
 
@@ -32,6 +34,18 @@ export default async function PaginaResumo({ params }: { params: Promise<{ siteI
   const temChave = !!process.env.PAGESPEED_API_KEY;
   const eventos = await resumoDeEventos(u.accountId, site.id, periodoDeDias(30));
   const rastreio = await rastreamentoDoSite(u.accountId, site.id);
+  const envios = await listarSubmissoes(u.accountId, site.id, { limite: 5 });
+  const quandoTexto = (d: Date) => quandoRelativoOuData(d, site.timezone);
+  // Só fatos registrados, dos quatro módulos; o mais recente primeiro; sem nada fictício.
+  const acontecimentos: Acontecimento[] = [
+    ...incidentes.flatMap((i): Acontecimento[] => [
+      ...(i.recoveredAt ? [{ id: `inc-rec-${i.id}`, quando: new Date(i.recoveredAt), icone: 'verificar' as const, tom: 'ok' as const, titulo: 'Site respondendo de novo', detalhe: `Incidente de ${ROTULO_CATEGORIA[i.causeCategory ?? ''] ?? i.causeCategory ?? 'causa não classificada'} encerrado`, href: `/sites/${site.id}/disponibilidade`, quandoTexto: quandoTexto(new Date(i.recoveredAt)) }] : []),
+      { id: `inc-${i.id}`, quando: new Date(i.confirmedAt ?? i.firstFailureAt), icone: 'alerta' as const, tom: i.confirmedAt ? ('neg' as const) : ('warn' as const), titulo: i.confirmedAt ? 'Indisponível para o monitor' : 'Falha isolada', detalhe: `${ROTULO_CATEGORIA[i.causeCategory ?? ''] ?? i.causeCategory ?? 'causa não classificada'}${i.causeDetail ? ` · ${i.causeDetail}` : ''}`, href: `/sites/${site.id}/disponibilidade`, quandoTexto: quandoTexto(new Date(i.confirmedAt ?? i.firstFailureAt)) },
+    ]),
+    ...alertas.filter((a) => !['incidente_confirmado', 'incidente_recuperado'].includes(a.kind)).map((a): Acontecimento => ({ id: `al-${a.id}`, quando: new Date(a.createdAt), icone: 'alerta', tom: a.state !== 'aberto' ? 'soft' : a.severity === 'alta' ? 'neg' : 'warn', titulo: ROTULO_ALERTA[a.kind] ?? a.kind, detalhe: a.state === 'aberto' ? 'Alerta aberto' : 'Alerta encerrado', href: a.kind === 'coletor_parado' ? `/sites/${site.id}/instalacao` : a.kind === 'regressao_pagespeed' ? `/sites/${site.id}/velocidade` : `/sites/${site.id}/disponibilidade`, quandoTexto: quandoTexto(new Date(a.createdAt)) })),
+    ...medicoes.filter((m) => m.status === 'ok').map((m): Acontecimento => ({ id: `med-${m.id}`, quando: new Date(m.measuredAt), icone: 'tendencia', tom: m.regression ? 'warn' : 'info', titulo: `PageSpeed ${m.device === 'mobile' ? 'mobile' : 'desktop'}: performance ${m.performance ?? '—'}`, detalhe: `${m.url}${m.regression ? ' · possível regressão' : ''}`, href: `/sites/${site.id}/velocidade`, quandoTexto: quandoTexto(new Date(m.measuredAt)) })),
+    ...envios.map((e): Acontecimento => ({ id: `sub-${e.id}`, quando: new Date(e.occurredAt), icone: 'mensagem', tom: e.receiptStatus === 'falha_destino' ? 'neg' : 'ok', titulo: e.isNewLead ? 'Novo contato' : 'Contato enviou de novo', detalhe: `${e.contactName ?? 'sem nome'}${e.pagePath ? ` · ${e.pagePath}` : ''}${e.attribution === 'ultimo_clique' && e.botao ? ` · via ${e.botao}` : ''}`, href: `/sites/${site.id}/contatos`, quandoTexto: quandoTexto(new Date(e.occurredAt)) })),
+  ].sort((a, b) => b.quando.getTime() - a.quando.getTime()).slice(0, 8);
   const s = site.situacao;
   const semWorker = !worker || workerSemSinal(worker.seenAt);
   const plataforma = PLATAFORMAS.find((p) => p.valor === site.platform)?.texto ?? site.platform;
@@ -115,22 +129,11 @@ export default async function PaginaResumo({ params }: { params: Promise<{ siteI
         </ul>
       </Painel>
 
-      <Painel kicker="atividade recente" titulo={alertas.length || incidentes.length ? 'Últimos acontecimentos' : 'Nada registrado ainda'}>
-        {alertas.length === 0 && incidentes.length === 0 ? (
+      <Painel kicker="atividade recente" titulo={acontecimentos.length ? 'Últimos acontecimentos' : 'Nada registrado ainda'} subtitulo={acontecimentos.length ? 'Incidentes, alertas, medições e contatos, do mais recente ao mais antigo.' : undefined}>
+        {acontecimentos.length === 0 ? (
           <Aviso>Incidentes, alertas, medições e contatos aparecerão aqui quando existirem. Não há atividade fictícia.</Aviso>
         ) : (
-          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--esp-2)' }}>
-            {alertas.map((a) => (
-              <li key={a.id} className="item-trabalho" data-tom={a.state !== 'aberto' ? 'soft' : a.severity === 'alta' ? 'neg' : 'warn'}>
-                <SeloEstado texto={a.state === 'aberto' ? 'Alerta aberto' : 'Alerta encerrado'} tom={a.state === 'aberto' ? (a.severity === 'alta' ? 'neg' : 'warn') : 'soft'} />
-                <div className="item-trabalho-texto">
-                  <span className="item-trabalho-titulo">{ROTULO_ALERTA[a.kind] ?? a.kind}</span>
-                  <span className="item-trabalho-detalhe">{dataHora(a.createdAt, site.timezone)}</span>
-                </div>
-                <Link href={`/sites/${site.id}/disponibilidade`} className="botao botao-pequeno">Ver</Link>
-              </li>
-            ))}
-          </ul>
+          <LinhaDoTempo itens={acontecimentos} />
         )}
       </Painel>
 

@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { exigirSessao } from '@/modules/accounts/contexto';
 import { buscarSite, estadoDoWorker, workerSemSinal } from '@/modules/portfolio/consultas';
-import { historicoDeAlertas, incidentesDoSite, resumoDeChecagens, ultimasChecagens, ROTULO_ALERTA, ROTULO_CATEGORIA } from '@/modules/monitoring/consultas';
+import { checagensPorDia, historicoDeAlertas, incidentesDoSite, resumoDeChecagens, ultimasChecagens, ROTULO_ALERTA, ROTULO_CATEGORIA } from '@/modules/monitoring/consultas';
+import { CartaoDeSerie } from '@/shared/ui/CartaoDeSerie';
+import { data } from '@/shared/time/formato';
 import { definirManutencao, pausarOuRetomar, verificarAgora } from '@/modules/monitoring/acoes';
 import { emailLigadoParaOSite, preferenciasDeNotificacao } from '@/modules/notifications/consultas';
 import { alternarEmailDoSite } from '@/modules/notifications/acoes';
@@ -24,14 +26,50 @@ function duracao(ms: number): string {
   return `${h} h ${min % 60} min`;
 }
 
-export default async function PaginaDisponibilidade({ params }: { params: Promise<{ siteId: string }> }) {
+const PERIODOS_SERIE = [7, 30] as const;
+
+/**
+ * Faixa de um retângulo por dia: altura = fração de checagens que responderam; cor = ok/aviso/erro.
+ * Adaptada do padrão "faixa diária" (bento), com dado real: nunca há barra para dia sem checagem.
+ */
+function FaixaDeDias({ dias, fuso, total, ok }: { dias: { dia: Date; total: number; ok: number }[]; fuso: string; total: number; ok: number }) {
+  const pct = ((ok / total) * 100).toFixed(1);
+  return (
+    <span style={{ display: 'block' }}>
+      <span role="img" aria-label={`${ok} de ${total} checagens responderam no período (${pct}%), em ${dias.length} dia(s) com checagem.`} style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 36 }}>
+        {dias.map((d, i) => {
+          const f = d.total ? d.ok / d.total : 0;
+          const cor = f >= 0.995 ? 'var(--ok-tx)' : f >= 0.95 ? 'var(--warn-tx)' : 'var(--neg)';
+          return (
+            <span
+              key={d.dia.toISOString()}
+              className="grafico-barra"
+              title={`${data(d.dia, fuso)}: ${d.ok} de ${d.total} responderam (${(f * 100).toFixed(1)}%)`}
+              style={{ flex: '0 1 12px', minWidth: 4, height: `${Math.max(8, f * 100)}%`, borderRadius: 'var(--raio-p)', background: cor, opacity: 0.45 + f * 0.55, animationDelay: `${i * 22}ms` }}
+            />
+          );
+        })}
+      </span>
+      <span style={{ display: 'block', marginTop: 6 }}>
+        <span className="mono" style={{ color: 'var(--tx)' }}>{ok}</span> de <span className="mono" style={{ color: 'var(--tx)' }}>{total}</span> checagens responderam no período ({pct}%) · uma barra por dia com checagem; a altura é a fração que respondeu.
+      </span>
+    </span>
+  );
+}
+
+export default async function PaginaDisponibilidade({ params, searchParams }: { params: Promise<{ siteId: string }>; searchParams: Promise<{ dias?: string }> }) {
   const u = await exigirSessao();
   const { siteId } = await params;
+  const { dias: diasParam } = await searchParams;
+  const diasDaSerie = (PERIODOS_SERIE as readonly number[]).includes(Number(diasParam)) ? Number(diasParam) : 7;
   const site = await buscarSite(u.accountId, u.userId, siteId);
   if (!site) notFound();
   const m = site.monitor;
   const s = site.situacao;
   const fuso = site.timezone;
+  const porDia = m ? await checagensPorDia(u.accountId, site.id, fuso, diasDaSerie) : [];
+  const totalPeriodo = porDia.reduce((a, d) => a + d.total, 0);
+  const okPeriodo = porDia.reduce((a, d) => a + d.ok, 0);
 
   if (!m) {
     return (
@@ -147,6 +185,20 @@ export default async function PaginaDisponibilidade({ params }: { params: Promis
           </dd>
         </dl>
       </Painel>
+
+      <CartaoDeSerie
+        kicker="ao longo do tempo"
+        titulo="Tempo de resposta"
+        subtitulo="Média diária, em milissegundos, das checagens que responderam (até os cabeçalhos da resposta final). Dia sem checagem é lacuna."
+        series={[{ nome: 'Tempo médio', cor: 'c1', pontos: porDia.map((d) => ({ quando: d.dia, valor: d.mediaMs })) }]}
+        unidade=" ms"
+        formatar={(v) => String(Math.round(v))}
+        formatarData={(d) => data(d, fuso).slice(0, 5)}
+        menorEhMelhor
+        periodos={PERIODOS_SERIE.map((n) => ({ rotulo: `${n} dias`, href: `/sites/${site.id}/disponibilidade?dias=${n}`, atual: diasDaSerie === n }))}
+        vazio={m ? { titulo: 'Ainda não há dois dias de checagens', explicacao: 'A linha aparece a partir do segundo dia com checagem. Nada é desenhado antes disso.' } : { titulo: 'Monitor não ativado', explicacao: 'Ative o monitor na edição do site para o worker verificar a cada 5 minutos.', tom: 'configurar' }}
+        rodape={totalPeriodo > 0 ? <FaixaDeDias dias={porDia} fuso={fuso} total={totalPeriodo} ok={okPeriodo} /> : undefined}
+      />
 
       <Painel kicker="amostras" titulo="Checagens bem-sucedidas no período" subtitulo="É a fração das amostras que respondeu — não equivale a disponibilidade contínua. Lacunas indicam períodos sem checagem.">
         <dl className="definicoes">

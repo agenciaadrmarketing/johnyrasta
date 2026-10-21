@@ -10,6 +10,11 @@ VPS, nginx, DNS e implantação em produção **suspensos**. O banco dos testes 
 - Revisão funcional e responsiva (`tests/e2e/revisao-responsiva.spec.ts`, desktop e Pixel 7): 18 telas com dados de revisão (checagens, incidente, medições, CrUX, eventos e contato enviados pelos endpoints reais) sem estouro horizontal, sem erro de console e sem HTTP 4xx/5xx; dados aparecem em Disponibilidade, Velocidade, Botões, Contatos e Relatório; edição de site e busca; tema claro + FX ligados. Capturas inspecionadas.
 - Lentidão (D93): `npm run medir -- --fx` e `DB_LOG_LENTO_MS`; `cache()` nas consultas repetidas.
 
+### Design (adaptação dos componentes enviados, D94–D95)
+- `CartaoDeSerie` em Velocidade (nota de performance mobile/desktop por dia; 30/90 dias ou 12 meses) e em Disponibilidade (tempo de resposta por dia; 7/30 dias, com faixa de barras da fração que respondeu).
+- `LinhaDoTempo` no Resumo: incidentes, alertas, medições e contatos; corrige a seção que saía vazia.
+- Verificado em desktop e Pixel 7 (`revisao-responsiva.spec.ts`), sem estouro nem erro.
+
 ### Pendências reais de integração
 - Preflight e ligação ao Supabase real (credenciais no notebook, `.env.supabase`).
 - PageSpeed real (chave só no `.env.local`; a colada no chat deve ser revogada), e-mail real, site piloto.

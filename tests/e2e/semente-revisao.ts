@@ -58,6 +58,12 @@ export async function semearRevisao(): Promise<{ accountId: string; clienteId: s
         [conta, site.id],
       );
     }
+    // Dados que o próprio teste envia (eventos, sessões, contatos) começam limpos a cada execução,
+    // para a linha do tempo do Resumo (8 itens) ser determinística.
+    await c.query('delete from submissions where site_id = $1', [site.id]);
+    await c.query('delete from contacts where site_id = $1', [site.id]);
+    await c.query('delete from events where site_id = $1', [site.id]);
+    await c.query('delete from sessions where site_id = $1', [site.id]);
     return { accountId: conta, clienteId: cli.id, siteId: site.id, publicId: PUBLIC_ID };
   } finally {
     await c.end();
